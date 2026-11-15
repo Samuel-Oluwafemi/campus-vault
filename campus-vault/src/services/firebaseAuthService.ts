@@ -1,0 +1,89 @@
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  reload,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth';
+import { getFirebaseAuth } from '@/firebase/client';
+
+export const firebaseAuthService = {
+  observe(callback: (user: User | null) => void, onError: (error: Error) => void) {
+    try {
+      return onAuthStateChanged(getFirebaseAuth(), callback, onError);
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error('Unable to initialize authentication.'));
+      return () => undefined;
+    }
+  },
+
+  async register(fullName: string, email: string, password: string) {
+    const auth = getFirebaseAuth();
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(credential.user, { displayName: fullName });
+    await sendEmailVerification(credential.user, {
+      url: `${window.location.origin}/verify-email`,
+    });
+    return credential.user;
+  },
+
+  async login(email: string, password: string) {
+    const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+    return credential.user;
+  },
+
+  async resendVerification(user: User) {
+    if (user.emailVerified) return;
+    await sendEmailVerification(user, {
+      url: `${window.location.origin}/verify-email`,
+    });
+  },
+
+  async refreshVerification(user: User) {
+    await reload(user);
+    return getFirebaseAuth().currentUser;
+  },
+
+  async requestPasswordReset(email: string) {
+    await sendPasswordResetEmail(getFirebaseAuth(), email);
+  },
+
+  async logout() {
+    await signOut(getFirebaseAuth());
+  },
+};
+
+export function getAuthErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return 'Authentication could not be completed. Please try again.';
+
+  if (error.name === 'FirebaseConfigurationError') return error.message;
+
+  const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'An account already exists for this email. Try signing in instead.';
+    case 'auth/invalid-email':
+      return 'Enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Choose a stronger password with at least 8 characters.';
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'Email or password is incorrect.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Wait a little while, then try again.';
+    case 'auth/network-request-failed':
+      return 'A network error interrupted the request. Check your connection and try again.';
+    case 'auth/operation-not-allowed':
+      return 'Email and password sign-in is not enabled for this Firebase project.';
+    case 'auth/unauthorized-domain':
+      return 'This address is not authorized in Firebase. Add the current host to Firebase Authentication authorized domains.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Contact the Campus Vault administrator.';
+    default:
+      return 'Authentication could not be completed. Please try again.';
+  }
+}

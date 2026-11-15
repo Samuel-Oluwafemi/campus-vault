@@ -14,6 +14,7 @@ export const RESOURCE_TYPES = [
 ] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
+export type { ModerationStatus, PublicationStatus, UploadStatus } from '@/domain/resourceLifecycle';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 

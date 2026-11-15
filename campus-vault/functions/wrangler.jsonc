@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "campus-vault-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-01",
+  "vars": {
+    "APP_ORIGIN": "http://localhost:5173"
+  }
+}

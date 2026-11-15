@@ -1,0 +1,2 @@
+# Firebase project ID from the Firebase console (not a service-account secret).
+FIREBASE_PROJECT_ID=your-firebase-project-id

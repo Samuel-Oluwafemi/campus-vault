@@ -1,46 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
-import { authService, resourceService, ApiError } from '@/services';
-import type { Resource } from '@/types';
+import LandingPage from '@/pages/LandingPage';
 
-/** Temporary smoke test: proves the mock services and seed data are wired. Replace with real routes next. */
-function ServiceCheck() {
-  const [items, setItems] = useState<Resource[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await authService.login('ada@student.test');
-        const page = await resourceService.list();
-        setItems(page.items);
-      } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Something went wrong.');
-      }
-    })();
-  }, []);
-
-  if (error) return <p className="p-6 text-red-700">{error}</p>;
-  if (!items) return <p className="p-6 text-slate-600">Loading resources...</p>;
-  return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold">Campus Vault</h1>
-      <p className="mb-4 text-slate-600">{items.length} approved resources loaded from mock services.</p>
-      <ul className="space-y-2">
-        {items.map((r) => (
-          <li key={r.id} className="rounded border border-slate-200 p-3">
-            {r.title}
-          </li>
-        ))}
-      </ul>
-    </main>
-  );
-}
+const AuthPage = lazy(() => import('@/pages/AuthPage'));
 
 export default function App() {
   return (
     <Routes>
-      <Route path="*" element={<ServiceCheck />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Suspense fallback={<p className="auth-loading">Loading sign in…</p>}><AuthPage /></Suspense>} />
+      <Route path="/register" element={<Suspense fallback={<p className="auth-loading">Loading account setup…</p>}><AuthPage /></Suspense>} />
+      <Route path="/forgot-password" element={<Suspense fallback={<p className="auth-loading">Loading password reset…</p>}><AuthPage /></Suspense>} />
+      <Route path="/verify-email" element={<Suspense fallback={<p className="auth-loading">Loading verification…</p>}><AuthPage /></Suspense>} />
+      <Route path="*" element={<LandingPage />} />
     </Routes>
   );
 }
