@@ -333,10 +333,11 @@ Example:
   "uid": "firebase-user-id",
   "fullName": "Samuel Oluwafemi",
   "email": "student@example.com",
-  "departmentId": "geology",
-  "level": 400,
+  "departmentId": null,
+  "level": null,
   "role": "student",
   "isActive": true,
+  "emailVerified": true,
   "createdAt": "server-timestamp",
   "updatedAt": "server-timestamp"
 }
@@ -349,14 +350,20 @@ Fields:
 | uid | String | Firebase user ID |
 | fullName | String | Student's name |
 | email | String | Account email |
-| departmentId | String | Department reference |
-| level | Number | Current academic level |
+| departmentId | String or null | Approved department reference, or null until the student's department is available |
+| level | Number or null | Current academic level, or null until profile completion |
 | role | String | User role |
 | isActive | Boolean | Account status |
+| emailVerified | Boolean | Whether Firebase email verification is confirmed |
 | createdAt | Timestamp | Account creation date |
 | updatedAt | Timestamp | Last profile update |
 
 The user's role must be protected from client-side modification.
+Newly registered profiles may have a null department and level until the
+verified profile-completion flow saves an approved academic level. The initial
+catalog is Geology at FUNAAB; students from other FUNAAB departments may
+register and leave their department unset until its approved department record
+is added. Department does not restrict access to approved library resources.
 
 ## 6.3 Departments Collection
 

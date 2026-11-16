@@ -1,0 +1,43 @@
+name: Campus Vault CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: campus-vault/package-lock.json
+      - run: npm ci
+        working-directory: campus-vault
+      - run: npm run build
+        working-directory: campus-vault
+
+  worker:
+    name: Worker tests and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: campus-vault/functions/package-lock.json
+      - run: npm ci
+        working-directory: campus-vault/functions
+      - run: npm test
+        working-directory: campus-vault/functions
+      - run: npm run typecheck
+        working-directory: campus-vault/functions

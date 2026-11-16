@@ -85,8 +85,8 @@ Each document represents one registered Campus Vault user.
   "uid": "firebase-auth-uid",
   "fullName": "Samuel Oluwafemi",
   "email": "student@example.com",
-  "departmentId": "geology",
-  "level": 400,
+  "departmentId": null,
+  "level": null,
   "role": "student",
   "isActive": true,
   "emailVerified": true,
@@ -102,8 +102,8 @@ Each document represents one registered Campus Vault user.
 | uid | String | Yes | Firebase Authentication UID |
 | fullName | String | Yes | User's full name |
 | email | String | Yes | Registered email |
-| departmentId | String | Yes | Department reference |
-| level | Number | Yes | Academic level |
+| departmentId | String or null | No | Reference to an approved department; remains null until the student's department is available in the platform |
+| level | Number or null | No | Current academic level; null until profile completion |
 | role | String | Yes | User permission role |
 | isActive | Boolean | Yes | Account status |
 | emailVerified | Boolean | Yes | Email verification status |
@@ -129,7 +129,8 @@ Role changes must be performed through authorised backend operations.
 - A user document ID should match the Firebase Authentication UID.
 - Users must not be able to change their own role.
 - Users must not be able to change their own account status.
-- Department and level changes should be validated.
+- Academic level must be selected from the supported levels (100, 200, 300, 400, or 500).
+- A non-null department must reference an active, approved department record. The current profile flow exposes Geology only; students in other FUNAAB departments leave this field null until their department is seeded.
 - Account deletion should follow a controlled process so existing academic contributions are not accidentally lost.
 
 ---
@@ -681,8 +682,9 @@ All data entering the database must be validated.
 
 - Full name must not be empty.
 - Email must be valid.
-- Department must exist.
-- Academic level must be supported by the department.
+- Department may be null during profile completion; otherwise it must reference an active, approved department.
+- Academic level may be null until profile completion; otherwise it must be a supported level (100, 200, 300, 400, or 500).
+- Students may register while their department is not yet available in the platform; department is used for organization and is not an access boundary.
 - Role must be assigned through a trusted process.
 
 ## 13.2 Course Validation

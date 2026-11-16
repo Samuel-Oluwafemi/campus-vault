@@ -3,7 +3,7 @@
 ## Campus Vault API
 
 **Version:** 1.0  
-**Status:** Proposed — Not Yet Implemented  
+**Status:** Partially implemented — Worker identity/profile endpoints are available; academic, resource, and admin endpoints remain proposed.
 **Base URL:** `/api/v1`  
 **Backend:** Cloudflare Workers  
 **Authentication:** Firebase Authentication
@@ -27,7 +27,9 @@ The API connects the student-facing application and admin dashboard to the backe
 
 The API is designed around a REST architecture using JSON for requests and responses.
 
-All endpoints described here are proposed and must be implemented before they can be used.
+The authentication and student-profile endpoints in §3 are implemented in the
+Cloudflare Worker. Other endpoints described here remain proposed and must be
+implemented before they can be used.
 
 ## 2. API conventions
 
@@ -115,11 +117,12 @@ The backend provides additional profile and account-management functionality.
 
 ### 3.1 Get current user
 
-`GET /me`
+`GET /auth/session`
 
-**Access:** Authenticated users.
+**Access:** Authenticated users with a verified email and active profile.
 
-Returns the currently authenticated user's profile.
+Returns the current user's Firestore-backed profile. The profile must already
+exist; this endpoint does not create it.
 
 Example response:
 
@@ -127,43 +130,79 @@ Example response:
 {
   "success": true,
   "data": {
-    "id": "user_123",
-    "fullName": "Samuel Oluwafemi",
-    "email": "student@example.com",
-    "role": "student",
-    "departmentId": "geology",
-    "level": "400",
-    "status": "active"
+    "profile": {
+      "uid": "firebase-user-id",
+      "fullName": "Samuel Oluwafemi",
+      "email": "student@example.com",
+      "departmentId": null,
+      "level": null,
+      "role": "student",
+      "isActive": true,
+      "emailVerified": true,
+      "createdAt": "2026-11-15T16:00:00.000Z",
+      "updatedAt": "2026-11-15T16:00:00.000Z"
+    },
+    "emailVerified": true
   }
 }
 ```
 
-### 3.2 Update current user profile
+### 3.2 Create the current user's profile
 
-`PATCH /me`
+`POST /auth/profile`
 
-**Access:** Authenticated users.
+**Access:** Authenticated users with a verified email.
 
-Allows users to update permitted profile information.
+Creates a student profile after Firebase Authentication registration. The
+backend assigns the authenticated user's UID and email, `student` role, active
+status, and timestamps; client role and status fields are never accepted.
+Creation is idempotent and returns an existing profile if one already exists.
 
 Example request:
 
 ```json
 {
-  "fullName": "Samuel Oluwafemi",
-  "departmentId": "geology",
-  "level": "400"
+  "fullName": "Samuel Oluwafemi"
 }
 ```
 
-The backend must reject attempts to change protected fields such as:
+Returns the profile/session envelope from §3.1. Department and academic level
+are initially `null` and can be completed using §3.3.
+
+### 3.3 Update the current user's academic profile
+
+`PATCH /auth/profile`
+
+**Access:** Authenticated users with a verified email and active profile.
+
+Updates only the caller's academic level and optional department. The current
+pilot accepts department ID `geology` or `null` (for FUNAAB departments not yet
+listed) and academic levels 100, 200, 300, 400, or 500.
+
+Example request:
+
+```json
+{
+  "departmentId": "geology",
+  "level": 400
+}
+```
+
+The backend rejects attempts to change protected fields such as:
 
 - `role`
-- `status`
-- `isAdmin`
+- `isActive`
+- `email`
+- `uid`
 - Account approval privileges
 
-These fields can only be changed through authorised admin operations.
+The update is limited to the caller's profile document. `departmentId` may be
+`null`; `level` is required. Returns the updated profile/session envelope from
+§3.1.
+
+The routes in this section are relative to the `/api/v1` base URL and require
+the Firebase ID token in the `Authorization: Bearer <token>` header. Requests
+are JSON and responses use the standard success/error envelopes in §2.
 
 ## 4. Academic data endpoints
 
@@ -211,7 +250,17 @@ Returns department information and relevant academic details.
 
 `GET /courses`
 
-**Access:** Authenticated users.
+**Access:** Public.
+
+The current Worker implementation supports the provisional FUNAAB Geology seed catalog
+at `GET /courses?departmentId=geology`. Its records are derived from reference filenames,
+not an official course handbook. Course titles and semesters are unverified, level 300 is
+inferred from course-code prefixes, and listed filenames are not hosted resources. It also
+returns level-wide past-question filenames that cannot be mapped to an individual course.
+This endpoint does not read from Firestore; other department IDs return `404`.
+
+The query parameters below describe the planned full catalog API. Filters other than
+`departmentId` are not currently implemented by this provisional endpoint.
 
 Supported query parameters:
 

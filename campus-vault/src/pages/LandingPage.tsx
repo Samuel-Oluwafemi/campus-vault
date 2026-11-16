@@ -1,5 +1,6 @@
 import SiteHeader from '@/components/layout/SiteHeader';
 import { Link } from 'react-router-dom';
+import { useAuthUser } from '@/hooks/useAuthUser';
 
 const resourceTypes = [
   { number: '01', title: 'Lecture notes', detail: 'Keep course material together.' },
@@ -26,6 +27,15 @@ const steps = [
 ];
 
 export default function LandingPage() {
+  const auth = useAuthUser();
+  const authenticatedAction = auth.status === 'loading'
+    ? null
+    : auth.status === 'signedIn'
+    ? auth.user.emailVerified
+      ? { href: '/library', label: 'Open the library' }
+      : { href: '/verify-email', label: 'Verify your email' }
+    : { href: '/register', label: 'Get started' };
+
   return (
     <div id="top" className="site-shell">
       <SiteHeader />
@@ -40,12 +50,14 @@ export default function LandingPage() {
               permitted study materials into one organised academic library.
             </p>
             <div className="hero-actions">
-              <Link className="button button-primary" to="/register">
-                Get started <span aria-hidden="true">→</span>
-              </Link>
-              <a className="text-link" href="#library">
-                About the library <span aria-hidden="true">↓</span>
-              </a>
+              {authenticatedAction ? (
+                <Link className="button button-primary" to={authenticatedAction.href}>
+                  {authenticatedAction.label} <span aria-hidden="true">→</span>
+                </Link>
+              ) : (
+                <span className="button button-primary hero-auth-loading" role="status">Checking account…</span>
+              )}
+              <Link className="text-link" to="/library">About the library <span aria-hidden="true">→</span></Link>
             </div>
             <div className="hero-note">
               <span className="note-icon" aria-hidden="true">✓</span>
@@ -83,10 +95,22 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <p className="preview-caption">A product direction preview — the live library is not connected yet.</p>
+              <p className="preview-caption">A product direction preview — course resources are not available yet.</p>
             </div>
             <div className="visual-footnote"><span>01</span> ORGANISE <i /> <span>02</span> REVIEW <i /> <span>03</span> LEARN</div>
           </div>
+        </section>
+
+        <section className="catalog-teaser page-width" id="library" aria-labelledby="catalog-title">
+          <div className="catalog-teaser-copy">
+            <p className="eyebrow">THE ACADEMIC LIBRARY</p>
+            <h2 id="catalog-title">A clearer home for course materials.</h2>
+            <p>
+              Browse the separate library page for resource filters and the provisional Geology course index.
+              Approved materials will appear there once the upload and review workflow is connected.
+            </p>
+          </div>
+          <Link className="button button-primary" to="/library">Explore the library <span aria-hidden="true">→</span></Link>
         </section>
 
         <section className="principles-band" id="principles" aria-label="Campus Vault principles">
@@ -98,7 +122,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="problem-section page-width" id="library">
+        <section className="problem-section page-width" id="why-library">
           <div className="section-intro">
             <p className="eyebrow">THE PROBLEM WE’RE SOLVING</p>
             <h2>Useful materials shouldn’t get lost in the chat.</h2>
@@ -149,14 +173,14 @@ export default function LandingPage() {
             <p className="eyebrow">PROJECT STATUS</p>
             <h2 id="status-title">The foundation is taking shape.</h2>
             <p>
-              Firebase account creation, sign-in and email verification are implemented,
-              but need your Firebase web app configuration to run. Student profiles, a
-              live academic library, uploads and downloads are not connected yet; those
-              require the trusted backend described in the project plan.
+              Firebase sign-in, verified accounts and student profiles are connected.
+              The student dashboard and separate library experience are available. The Geology
+              course index is provisional; approved course materials, uploads, and downloads
+              are not connected yet.
             </p>
           </div>
           <div className="status-actions">
-            <Link className="text-link" to="/login">Open sign in <span aria-hidden="true">→</span></Link>
+            <Link className="text-link" to="/library">Explore the library <span aria-hidden="true">→</span></Link>
             <a className="text-link status-link" href="#top">Back to top <span aria-hidden="true">↑</span></a>
           </div>
         </section>

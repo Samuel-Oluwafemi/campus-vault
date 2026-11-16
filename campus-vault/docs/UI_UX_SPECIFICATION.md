@@ -163,6 +163,21 @@ Campus Vault
     └── Account Settings
 ```
 
+### Student navigation and pilot content status
+
+After email verification and academic profile completion, registration and sign-in
+continue to `/library`. The dashboard is available at `/dashboard`. Authenticated
+navigation replaces the public sign-in and registration actions with Dashboard,
+Library, Contribute, My submissions, and an account menu.
+
+The library provides the department, level, semester, course, academic session,
+resource type, and search controls. The current Geology course index is explicitly
+provisional and derived from reference filenames. It is shown separately from
+approved resources; until an approved-resource feed and file storage are connected,
+the library must show an explicit unavailable state rather than invented resources,
+metadata, or download actions. The dashboard follows the same rule for recent
+resources and course recommendations.
+
 ### 4.2 Admin dashboard structure
 
 ```text

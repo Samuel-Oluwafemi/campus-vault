@@ -91,24 +91,25 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export async function apiRequest<T>(
+async function requestApi<T>(
   path: string,
   responseSchema: z.ZodType<T>,
-  options: ApiRequestOptions = {},
+  options: ApiRequestOptions,
+  requiresAuth: boolean,
 ): Promise<T> {
   const url = getApiUrl(path);
-  const auth = getFirebaseAuth();
-  const user = auth.currentUser;
+  const user = requiresAuth ? getFirebaseAuth().currentUser : null;
 
-  if (!user) {
+  if (requiresAuth && !user) {
     throw new ApiRequestError('Sign in to continue.', 'AUTH_REQUIRED', 401);
   }
-  if (!user.emailVerified) {
+  if (user && !user.emailVerified) {
     throw new ApiRequestError('Verify your email before using protected student features.', 'EMAIL_NOT_VERIFIED', 403);
   }
 
-  const token = await user.getIdToken();
+  const token = user ? await user.getIdToken() : '';
   const headers = new Headers({ Accept: 'application/json', Authorization: `Bearer ${token}` });
+  if (!token) headers.delete('Authorization');
   if (options.body !== undefined) headers.set('Content-Type', 'application/json');
 
   let response: Response;
@@ -166,4 +167,20 @@ export async function apiRequest<T>(
     );
   }
   return data.data;
+}
+
+export async function apiRequest<T>(
+  path: string,
+  responseSchema: z.ZodType<T>,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  return requestApi(path, responseSchema, options, true);
+}
+
+export async function publicApiRequest<T>(
+  path: string,
+  responseSchema: z.ZodType<T>,
+  options: Pick<ApiRequestOptions, 'signal'> = {},
+): Promise<T> {
+  return requestApi(path, responseSchema, options, false);
 }

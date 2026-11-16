@@ -4,7 +4,9 @@ import type { User } from 'firebase/auth';
 import { isFirebaseConfigured } from '@/firebase/client';
 import { firebaseAuthService, getAuthErrorMessage } from '@/services/firebaseAuthService';
 import { credentialsSchema, registrationSchema } from '@/validators/auth';
+import type { UserProfile } from '@/types/profile';
 import { z } from 'zod';
+import { ApiRequestError } from '@/services/apiClient';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify';
 
@@ -20,6 +22,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const mode = getMode(location.pathname);
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
@@ -27,6 +30,7 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     return firebaseAuthService.observe(
@@ -43,6 +47,41 @@ export default function AuthPage() {
     setPassword('');
     setConfirmPassword('');
   }, [mode]);
+
+  useEffect(() => {
+    if ((mode !== 'login' && mode !== 'register') || !user?.emailVerified) {
+      setProfileLoading(false);
+      return;
+    }
+
+    let active = true;
+    setProfileLoading(true);
+    void firebaseAuthService.getOrCreateProfile(user)
+      .then((currentProfile) => {
+        if (!active) return;
+        setProfile(currentProfile);
+        if (currentProfile.level === null) {
+          navigate('/complete-profile', { replace: true });
+        } else {
+          navigate('/library', { replace: true });
+        }
+      })
+      .catch((profileError: unknown) => {
+        if (!active) return;
+        if (profileError instanceof ApiRequestError && profileError.code === 'PROFILE_NOT_FOUND') {
+          navigate('/complete-profile', { replace: true });
+          return;
+        }
+        setError(`${getAuthErrorMessage(profileError)} You are signed in, but your profile could not be loaded.`);
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [mode, navigate, user]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,8 +116,6 @@ export default function AuthPage() {
         setUser(account);
         if (!account.emailVerified) {
           navigate('/verify-email', { replace: true });
-        } else {
-          setNotice('You are signed in. The student library is not connected yet.');
         }
       } else if (mode === 'forgot') {
         await firebaseAuthService.requestPasswordReset(email.trim());
@@ -103,7 +140,21 @@ export default function AuthPage() {
       const refreshedUser = await firebaseAuthService.refreshVerification(user);
       setUser(refreshedUser);
       if (refreshedUser?.emailVerified) {
-        setNotice('Your email is verified. Protected student features will be available when implemented.');
+        try {
+          const currentProfile = await firebaseAuthService.getOrCreateProfile(refreshedUser);
+          setProfile(currentProfile);
+          if (currentProfile.level === null) {
+            navigate('/complete-profile', { replace: true });
+          } else {
+            navigate('/library', { replace: true });
+          }
+        } catch (profileError) {
+          if (profileError instanceof ApiRequestError && profileError.code === 'PROFILE_NOT_FOUND') {
+            navigate('/complete-profile', { replace: true });
+          } else {
+            setError(`${getAuthErrorMessage(profileError)} Your email is verified, but your profile could not be loaded.`);
+          }
+        }
       } else {
         setNotice('Verification is not confirmed yet. Open the link in your email, then check again.');
       }
@@ -132,12 +183,37 @@ export default function AuthPage() {
     }
   }
 
+  async function retryProfileLoad() {
+    if (!user?.emailVerified) return;
+    setProfileLoading(true);
+    setError('');
+    setNotice('');
+    try {
+      const currentProfile = await firebaseAuthService.getOrCreateProfile(user);
+      setProfile(currentProfile);
+      if (currentProfile.level === null) {
+        navigate('/complete-profile', { replace: true });
+      } else {
+        navigate('/library', { replace: true });
+      }
+    } catch (profileError) {
+      if (profileError instanceof ApiRequestError && profileError.code === 'PROFILE_NOT_FOUND') {
+        navigate('/complete-profile', { replace: true });
+      } else {
+        setError(`${getAuthErrorMessage(profileError)} You are signed in, but your profile could not be loaded.`);
+      }
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
   async function logout() {
     setBusy(true);
     setError('');
     try {
       await firebaseAuthService.logout();
       setUser(null);
+      setProfile(null);
       setNotice('You have signed out.');
     } catch (authError) {
       setError(getAuthErrorMessage(authError));
@@ -204,9 +280,23 @@ export default function AuthPage() {
             <p className="signed-in-label">SIGNED IN</p>
             <p className="signed-in-email">{user.email}</p>
             <p className="signed-in-message">
-              Authentication is active. The student library and profile services
-              are not connected yet.
+              {profile
+                ? `Profile role: ${profile.role}. ${profile.level !== null ? 'Academic profile ready.' : 'Academic level is not set yet.'}`
+                : profileLoading
+                  ? 'Loading your student profile…'
+                  : 'Your profile could not be loaded. Check the message below and try again.'}
             </p>
+            {profileLoading && <p className="auth-loading" role="status">Loading your student profile…</p>}
+            {profile?.level === null && (
+              <Link className="button button-primary auth-submit" to="/complete-profile">
+                Complete academic profile
+              </Link>
+            )}
+            {!profile && !profileLoading && (
+              <button className="button button-secondary auth-submit" type="button" onClick={retryProfileLoad} disabled={busy}>
+                Retry profile loading
+              </button>
+            )}
             <button className="button button-secondary auth-submit" type="button" onClick={logout} disabled={busy}>
               {busy ? 'Signing out…' : 'Sign out'}
             </button>

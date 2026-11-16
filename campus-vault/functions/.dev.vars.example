@@ -1,2 +1,7 @@
+# Copy to .dev.vars for local Wrangler use; do not commit .dev.vars.
 # Firebase project ID from the Firebase console (not a service-account secret).
 FIREBASE_PROJECT_ID=your-firebase-project-id
+
+# Use a dedicated service account with only Firestore user-profile get/create/update permissions.
+FIREBASE_SERVICE_ACCOUNT_EMAIL=campus-vault-worker@your-firebase-project-id.iam.gserviceaccount.com
+FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nREPLACE_WITH_LOCAL_PRIVATE_KEY\n-----END PRIVATE KEY-----"

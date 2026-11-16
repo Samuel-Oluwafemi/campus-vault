@@ -10,6 +10,8 @@ import {
   type User,
 } from 'firebase/auth';
 import { getFirebaseAuth } from '@/firebase/client';
+import { profileService } from '@/services/profileService';
+import { ApiRequestError } from '@/services/apiClient';
 
 export const firebaseAuthService = {
   observe(callback: (user: User | null) => void, onError: (error: Error) => void) {
@@ -45,7 +47,20 @@ export const firebaseAuthService = {
 
   async refreshVerification(user: User) {
     await reload(user);
-    return getFirebaseAuth().currentUser;
+    const refreshedUser = getFirebaseAuth().currentUser;
+    if (refreshedUser) await refreshedUser.getIdToken(true);
+    return refreshedUser;
+  },
+
+  async updateDisplayName(user: User, fullName: string) {
+    await updateProfile(user, { displayName: fullName });
+  },
+
+  async getOrCreateProfile(user: User) {
+    if (!user.emailVerified) {
+      throw new Error('Verify your email before creating your Campus Vault profile.');
+    }
+    return profileService.getOrCreateCurrentProfile(user);
   },
 
   async requestPasswordReset(email: string) {
@@ -61,6 +76,7 @@ export function getAuthErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) return 'Authentication could not be completed. Please try again.';
 
   if (error.name === 'FirebaseConfigurationError') return error.message;
+  if (error instanceof ApiRequestError) return error.message;
 
   const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
   switch (code) {
