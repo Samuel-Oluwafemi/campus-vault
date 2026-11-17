@@ -1626,15 +1626,16 @@ a:focus-visible {
 }
 
 .footer-inner {
-  display: flex;
-  min-height: 86px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  min-height: 150px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(130px, 0.8fr) minmax(190px, 1fr);
+  align-items: start;
+  gap: 32px;
+  padding-block: 28px;
 }
 
 .footer-brand {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .footer-brand .brand-mark {
@@ -1644,30 +1645,56 @@ a:focus-visible {
   font-size: 8px;
 }
 
-.footer-inner > p,
-.footer-note {
+.footer-intro {
+  display: grid;
+  gap: 12px;
+}
+
+.footer-intro > p {
   margin: 0;
   color: #7d8996;
-  font-size: 9px;
+  font-size: 12px;
 }
 
-.footer-note {
-  color: #9aa4ad;
-}
-
-.footer-meta {
-  display: grid;
-  justify-items: end;
-  gap: 5px;
-}
-
+.footer-links,
 .footer-credit {
-  color: #7d8996;
-  font-size: 9px;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 8px;
+}
+
+.footer-heading {
+  margin-bottom: 4px;
+  color: #253c4f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.footer-links a {
+  color: #526b80;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-links a:hover,
+.footer-links a:focus-visible {
+  text-decoration: none;
+  color: var(--color-brand-navy);
+}
+
+.footer-credit > span:not(.footer-heading) {
+  color: #526b80;
+  font-size: 12px;
 }
 
 .footer-credit a {
-  color: #526b80;
+  color: var(--color-brand-navy);
+  font-size: 15px;
+  font-weight: 800;
   text-decoration: none;
 }
 
@@ -2188,26 +2215,24 @@ a:focus-visible {
   }
 
   .footer-inner {
-    min-height: 95px;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px 15px;
-    padding-block: 17px;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 20px;
+    padding-block: 28px;
   }
 
-  .footer-inner > p {
-    margin-left: auto;
+  .footer-intro {
+    grid-column: 1 / -1;
   }
 
-  .footer-meta {
-    width: 100%;
-    padding-left: 40px;
-    justify-items: start;
+  .footer-credit {
+    justify-self: start;
   }
+}
 
-  .footer-note {
-    width: auto;
-    padding-left: 0;
+@media (max-width: 400px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
 }
 
@@ -2288,9 +2313,7 @@ a:focus-visible {
 .workflow-heading > p:last-child,
 .status-section > div > p:last-child,
 .problem-list p,
-.step p,
-.footer-inner > p,
-.footer-note {
+.step p {
   font-size: 12px;
 }
 
