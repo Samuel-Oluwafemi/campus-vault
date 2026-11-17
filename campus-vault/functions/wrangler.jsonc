@@ -5,5 +5,12 @@
   "compatibility_date": "2025-03-01",
   "vars": {
     "APP_ORIGIN": "http://localhost:5173"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ORIGIN": "https://campus-vault1.netlify.app"
+      }
+    }
   }
 }

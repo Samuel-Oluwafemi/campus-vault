@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { firebaseAuthService } from '@/services/firebaseAuthService';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useToast } from '@/components/feedback/ToastProvider';
 
 export default function SiteHeader() {
   const auth = useAuthUser();
+  const { showToast } = useToast();
   const { pathname } = useLocation();
   const [logoutError, setLogoutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
@@ -14,6 +16,7 @@ export default function SiteHeader() {
     setLogoutError('');
     try {
       await firebaseAuthService.logout();
+      showToast('You have signed out successfully.');
     } catch (error) {
       setLogoutError(error instanceof Error ? error.message : 'You could not be signed out. Please try again.');
     } finally {

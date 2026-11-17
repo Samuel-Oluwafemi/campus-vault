@@ -35,6 +35,22 @@ production `APP_ORIGIN` to the Netlify site origin and setting backend
 credentials as Cloudflare Worker secrets. Never put service-account private
 keys in Netlify frontend variables, GitHub repository files, or this repository.
 
+For production, deploy with the production Wrangler environment:
+
+```powershell
+cd campus-vault/functions
+npx wrangler login
+npx wrangler secret put FIREBASE_PROJECT_ID --env production
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_EMAIL --env production
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_PRIVATE_KEY --env production
+npx wrangler deploy --env production
+```
+
+Use the values already configured locally in `functions/.dev.vars`, but enter
+them directly into Wrangler when prompted. Do not paste the private key into
+Netlify or commit it. The resulting Worker URL should be used as
+`VITE_API_BASE_URL` with `/api/v1` appended.
+
 The Worker currently provides health, profile, and provisional course-index
 routes. Approved resource metadata, file storage, previews, and downloads are
 not deployed. The Geology PDFs and past questions in the local reference folder

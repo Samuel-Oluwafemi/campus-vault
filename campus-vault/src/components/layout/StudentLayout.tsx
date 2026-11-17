@@ -5,6 +5,7 @@ import { ApiRequestError } from '@/services/apiClient';
 import { profileService } from '@/services/profileService';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import SiteHeader from '@/components/layout/SiteHeader';
+import SiteFooter from '@/components/layout/SiteFooter';
 
 export type StudentOutletContext = {
   profile: UserProfile;
@@ -93,6 +94,7 @@ export default function StudentLayout() {
     <div className="student-shell">
       <SiteHeader />
       <Outlet context={{ profile } satisfies StudentOutletContext} />
+      <SiteFooter />
     </div>
   );
 }

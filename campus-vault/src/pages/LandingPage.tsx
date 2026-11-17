@@ -1,6 +1,7 @@
 import SiteHeader from '@/components/layout/SiteHeader';
 import { Link } from 'react-router-dom';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import SiteFooter from '@/components/layout/SiteFooter';
 
 const resourceTypes = [
   { number: '01', title: 'Lecture notes', detail: 'Keep course material together.' },
@@ -186,16 +187,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="page-width footer-inner">
-          <a className="brand footer-brand" href="#top">
-            <span className="brand-mark" aria-hidden="true">CV</span>
-            <span>Campus Vault</span>
-          </a>
-          <p>Learn together. Share knowledge. Stay prepared.</p>
-          <span className="footer-note">A student-first academic library</span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

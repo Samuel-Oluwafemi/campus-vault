@@ -8,6 +8,7 @@ import PasswordInput from '@/components/auth/PasswordInput';
 import type { UserProfile } from '@/types/profile';
 import { z } from 'zod';
 import { ApiRequestError } from '@/services/apiClient';
+import { useToast } from '@/components/feedback/ToastProvider';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify';
 type AuthField = 'fullName' | 'email' | 'password' | 'confirmPassword';
@@ -54,6 +55,7 @@ function isInvalidCredentialError(error: unknown) {
 export default function AuthPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const mode = getMode(location.pathname);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -179,11 +181,13 @@ export default function AuthPage() {
       if (mode === 'register') {
         const account = await firebaseAuthService.register(fullName.trim(), email.trim(), password);
         setUser(account);
+        showToast('Account created successfully.');
         navigate('/verify-email', { replace: true });
         setNotice('Your account is ready. Check your inbox for the verification link.');
       } else if (mode === 'login') {
         const account = await firebaseAuthService.login(email.trim(), password);
         setUser(account);
+        showToast('Signed in successfully.');
         if (!account.emailVerified) {
           navigate('/verify-email', { replace: true });
         }
@@ -306,6 +310,7 @@ export default function AuthPage() {
       await firebaseAuthService.logout();
       setUser(null);
       setProfile(null);
+      showToast('You have signed out successfully.');
       setNotice('You have signed out.');
     } catch (authError) {
       logAuthenticationFailure(authError);
