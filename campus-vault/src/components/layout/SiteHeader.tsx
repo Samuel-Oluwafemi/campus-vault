@@ -60,18 +60,6 @@ export default function SiteHeader() {
         )}
       </nav>
 
-      {verified && (
-        <details className="mobile-nav">
-          <summary>Menu</summary>
-          <nav aria-label="Student navigation">
-            <Link to="/dashboard">Dashboard</Link>
-            <Link to="/library">Library</Link>
-            <Link to="/contribute">Contribute</Link>
-            <Link to="/my-submissions">My submissions</Link>
-          </nav>
-        </details>
-      )}
-
       <div className="header-actions">
         {auth.status === 'loading' ? (
           <span className="header-auth-loading" role="status">Checking account…</span>
@@ -102,6 +90,24 @@ export default function SiteHeader() {
             <Link className="header-signin" to="/login">Sign in</Link>
             <Link className="header-link" to="/register">Get started <span aria-hidden="true">↗</span></Link>
           </>
+        )}
+        {verified && (
+          <details className="mobile-nav">
+            <summary aria-label="Open student navigation">
+              <span className="hamburger-icon" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="sr-only">Menu</span>
+            </summary>
+            <nav aria-label="Student navigation">
+              <Link to="/dashboard">Dashboard</Link>
+              <Link to="/library">Library</Link>
+              <Link to="/contribute">Contribute</Link>
+              <Link to="/my-submissions">My submissions</Link>
+            </nav>
+          </details>
         )}
       </div>
       {(auth.status === 'error' || logoutError) && (
