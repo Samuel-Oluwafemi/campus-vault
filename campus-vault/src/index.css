@@ -2034,6 +2034,27 @@ a:focus-visible {
     gap: 13px;
   }
 
+  .hero-actions {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 14px;
+  }
+
+  .hero-actions .button,
+  .hero-actions .text-link,
+  .status-actions .text-link {
+    white-space: nowrap;
+  }
+
+  .status-actions {
+    display: flex;
+    align-items: center;
+    justify-items: initial;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
   .header-link {
     padding: 9px 11px;
     font-size: 10px;
@@ -2197,9 +2218,7 @@ a:focus-visible {
   }
 
   .hero-actions {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 17px;
+    gap: 10px;
   }
 
   .academic-path {
