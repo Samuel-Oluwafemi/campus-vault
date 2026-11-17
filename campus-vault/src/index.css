@@ -2058,3 +2058,340 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+.site-header .brand {
+  font-size: 17px;
+}
+
+.site-nav a,
+.header-link {
+  font-size: 14px;
+}
+
+.header-signin {
+  font-size: 13px;
+}
+
+.eyebrow,
+.hero-copy > .eyebrow {
+  font-size: 11px;
+}
+
+.hero-description {
+  font-size: 16px;
+}
+
+.hero-note,
+.visual-label,
+.academic-path,
+.resource-copy strong,
+.preview-caption,
+.principles-inner > p,
+.principles-inner > div,
+.catalog-warning,
+.catalog-search,
+.catalog-message,
+.catalog-error,
+.catalog-course details,
+.section-intro > p:last-child,
+.workflow-heading > p:last-child,
+.status-section > div > p:last-child,
+.problem-list p,
+.step p,
+.footer-inner > p,
+.footer-note {
+  font-size: 12px;
+}
+
+.visual-status,
+.card-kicker,
+.visual-section-title,
+.resource-copy small,
+.visual-footnote {
+  font-size: 11px;
+}
+
+.resource-number {
+  font-size: 16px;
+}
+
+.problem-list h3,
+.step h3 {
+  font-size: 14px;
+}
+
+.status-section h2 {
+  font-size: 25px;
+}
+
+.button,
+.text-link {
+  font-size: 13px;
+}
+
+.catalog-search input,
+.catalog-course dl,
+.catalog-course summary,
+.catalog-status,
+.resource-count,
+.library-search,
+.filter-grid label,
+.filter-clear,
+.library-search input,
+.filter-grid select,
+.resource-empty-state p,
+.overview-label,
+.overview-card p:last-child,
+.overview-card .text-link,
+.panel-heading .text-link,
+.dashboard-catalog-note,
+.dashboard-course-list li,
+.dashboard-empty p,
+.dashboard-muted,
+.dashboard-inline-error,
+.dashboard-empty .text-link,
+.quick-access-links a,
+.feature-status-card > p:not(.eyebrow) {
+  font-size: 12px;
+}
+
+.catalog-course h3,
+.resource-empty-state h3,
+.filter-heading-row h2,
+.results-heading h2,
+.panel-heading h2 {
+  font-size: 17px;
+}
+
+.account-menu summary,
+.account-menu-panel > a,
+.account-menu-panel > button,
+.account-menu-email,
+.mobile-nav summary,
+.mobile-nav nav a {
+  font-size: 13px;
+}
+
+.student-page-heading p:last-child,
+.dashboard-welcome p:last-child,
+.filter-heading-row p {
+  font-size: 14px;
+}
+
+.student-page-heading h1,
+.dashboard-welcome h1 {
+  font-size: clamp(35px, 4vw, 46px);
+}
+
+.overview-label {
+  font-size: 11px;
+}
+
+.overview-card h2 {
+  font-size: 18px;
+}
+
+.quick-access-panel h2 {
+  font-size: 17px;
+}
+
+.feature-status-card h1 {
+  font-size: clamp(32px, 4vw, 44px);
+}
+
+.auth-card h1 {
+  font-size: 35px;
+}
+
+.auth-intro,
+.auth-form label,
+.auth-form input,
+.auth-form select,
+.auth-inline-link,
+.auth-switch,
+.auth-footnote,
+.auth-alert,
+.auth-alert code,
+.auth-loading,
+.auth-unavailable-note,
+.auth-privacy-note,
+.auth-field-error,
+.password-requirements,
+.signed-in-label,
+.signed-in-message,
+.verification-panel > p,
+.auth-quiet-button {
+  font-size: 13px;
+}
+
+.auth-form {
+  gap: 18px;
+}
+
+.auth-form label {
+  gap: 8px;
+}
+
+.auth-form input,
+.auth-form select {
+  min-height: 48px;
+  padding-inline: 14px;
+}
+
+.auth-form input[aria-invalid="true"] {
+  border-color: #c64040;
+  background: #fffafa;
+}
+
+.auth-form input[aria-invalid="true"]:focus {
+  outline-color: #c6404033;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.password-input-wrap > input {
+  padding-right: 52px;
+}
+
+.password-visibility-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 5px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.password-visibility-toggle:hover {
+  background: #f1f5f8;
+  color: #253b56;
+}
+
+.password-visibility-toggle:focus-visible {
+  outline: 3px solid #7aaed666;
+}
+
+.password-visibility-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.auth-field-error {
+  display: block;
+  color: #a52c2c;
+  font-weight: 600;
+}
+
+.password-requirements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e6ebef;
+  border-radius: 7px;
+  background: #fbfcfd;
+  color: #69788b;
+  font-size: 12px;
+  font-weight: 450;
+  list-style: none;
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #69788b;
+  font-size: inherit;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.password-requirements li > span {
+  flex: 0 0 auto;
+  color: #8a96a4;
+  font-weight: 750;
+}
+
+.password-requirements .requirement-met,
+.password-requirements .requirement-met > span {
+  color: #3e7145;
+}
+
+.auth-privacy-note {
+  margin: -2px 0 0;
+  padding: 12px 13px;
+  border: 1px solid #dce7ee;
+  border-radius: 7px;
+  background: #f6f9fb;
+  color: #53677b;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.auth-privacy-note strong {
+  color: #33465e;
+}
+
+.auth-unavailable-note {
+  margin: 0 0 18px;
+  padding: 11px 13px;
+  border: 1px solid #e8dfc7;
+  border-radius: 7px;
+  background: #fffdf6;
+  color: #725d2f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.auth-card .auth-alert-error {
+  border-color: #edc9c6;
+  background: #fff4f3;
+  color: #a52c2c;
+  font-size: 13px;
+}
+
+.auth-card .auth-alert-success {
+  font-size: 13px;
+}
+
+.auth-card .auth-submit {
+  min-height: 49px;
+}
+
+@media (max-width: 680px) {
+  .site-header .brand {
+    font-size: 15px;
+  }
+
+  .header-link {
+    font-size: 12px;
+  }
+
+  .student-page-heading h1,
+  .dashboard-welcome h1 {
+    font-size: 35px;
+  }
+
+  .password-requirements {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-card h1 {
+    font-size: 32px;
+  }
+}

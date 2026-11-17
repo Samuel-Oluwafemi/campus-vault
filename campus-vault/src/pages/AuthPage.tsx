@@ -4,17 +4,51 @@ import type { User } from 'firebase/auth';
 import { isFirebaseConfigured } from '@/firebase/client';
 import { firebaseAuthService, getAuthErrorMessage } from '@/services/firebaseAuthService';
 import { credentialsSchema, registrationSchema } from '@/validators/auth';
+import PasswordInput from '@/components/auth/PasswordInput';
 import type { UserProfile } from '@/types/profile';
 import { z } from 'zod';
 import { ApiRequestError } from '@/services/apiClient';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify';
+type AuthField = 'fullName' | 'email' | 'password' | 'confirmPassword';
+type AuthFieldErrors = Partial<Record<AuthField, string>>;
+
+const passwordRequirements = [
+  { label: 'At least 8 characters', test: (value: string) => value.length >= 8 },
+  { label: 'One uppercase letter', test: (value: string) => /[A-Z]/.test(value) },
+  { label: 'One lowercase letter', test: (value: string) => /[a-z]/.test(value) },
+  { label: 'One number', test: (value: string) => /[0-9]/.test(value) },
+  { label: 'One symbol, such as ! or #', test: (value: string) => /[^A-Za-z0-9\s]/.test(value) },
+];
 
 function getMode(pathname: string): AuthMode {
   if (pathname === '/register') return 'register';
   if (pathname === '/forgot-password') return 'forgot';
   if (pathname === '/verify-email') return 'verify';
   return 'login';
+}
+
+function logAuthenticationFailure(error: unknown) {
+  const code = getErrorCode(error) || 'unknown';
+  console.error('[Campus Vault] Authentication request failed.', {
+    name: error instanceof Error ? error.name : 'UnknownError',
+    code,
+  });
+}
+
+function getErrorCode(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : '';
+}
+
+function isInvalidCredentialError(error: unknown) {
+  return [
+    'auth/invalid-credential',
+    'auth/invalid-login-credentials',
+    'auth/user-not-found',
+    'auth/wrong-password',
+  ].includes(getErrorCode(error));
 }
 
 export default function AuthPage() {
@@ -28,6 +62,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -36,13 +71,17 @@ export default function AuthPage() {
     return firebaseAuthService.observe(
       (currentUser) => setUser(currentUser),
       (authError) => {
-        if (isFirebaseConfigured()) setError(getAuthErrorMessage(authError));
+        if (isFirebaseConfigured()) {
+          logAuthenticationFailure(authError);
+          setError(getAuthErrorMessage(authError));
+        }
       },
     );
   }, []);
 
   useEffect(() => {
     setError('');
+    setFieldErrors({});
     setNotice('');
     setPassword('');
     setConfirmPassword('');
@@ -72,6 +111,7 @@ export default function AuthPage() {
           navigate('/complete-profile', { replace: true });
           return;
         }
+        logAuthenticationFailure(profileError);
         setError(`${getAuthErrorMessage(profileError)} You are signed in, but your profile could not be loaded.`);
       })
       .finally(() => {
@@ -83,15 +123,35 @@ export default function AuthPage() {
     };
   }, [mode, navigate, user]);
 
+  function updateField(field: AuthField, value: string) {
+    if (field === 'fullName') setFullName(value);
+    if (field === 'email') setEmail(value);
+    if (field === 'password') setPassword(value);
+    if (field === 'confirmPassword') setConfirmPassword(value);
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      if ((field === 'email' || field === 'password') && current.email === 'Email or password is incorrect.') {
+        delete next.email;
+        delete next.password;
+        return next;
+      }
+      delete next[field];
+      return next;
+    });
+    setError('');
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
+    setFieldErrors({});
     setNotice('');
 
     if (mode === 'forgot') {
       const emailResult = z.string().trim().email('Enter a valid email address.').safeParse(email);
       if (!emailResult.success) {
-        setError(emailResult.error.issues[0]?.message ?? 'Enter a valid email address.');
+        setFieldErrors({ email: emailResult.error.issues[0]?.message ?? 'Enter a valid email address.' });
         return;
       }
     } else {
@@ -99,7 +159,17 @@ export default function AuthPage() {
         ? registrationSchema.safeParse({ fullName, email, password, confirmPassword })
         : credentialsSchema.safeParse({ email, password });
       if (!parsed.success) {
-        setError(parsed.error.issues[0]?.message ?? 'Check the information you entered.');
+        const nextFieldErrors: AuthFieldErrors = {};
+        for (const issue of parsed.error.issues) {
+          const field = issue.path[0];
+          if (
+            (field === 'fullName' || field === 'email' || field === 'password' || field === 'confirmPassword') &&
+            !nextFieldErrors[field]
+          ) {
+            nextFieldErrors[field] = issue.message;
+          }
+        }
+        setFieldErrors(nextFieldErrors);
         return;
       }
     }
@@ -122,10 +192,28 @@ export default function AuthPage() {
         setNotice('If an account exists for that email, a password reset link has been sent.');
       }
     } catch (authError) {
+      logAuthenticationFailure(authError);
+      if (mode === 'login' && isInvalidCredentialError(authError)) {
+        setFieldErrors({
+          email: 'Email or password is incorrect.',
+          password: 'Email or password is incorrect.',
+        });
+      } else if (
+        mode === 'register' &&
+        ['auth/email-already-in-use', 'auth/weak-password', 'auth/invalid-email'].includes(getErrorCode(authError))
+      ) {
+        const code = getErrorCode(authError);
+        if (code === 'auth/email-already-in-use' || code === 'auth/invalid-email') {
+          setFieldErrors({ email: getAuthErrorMessage(authError) });
+        } else {
+          setFieldErrors({ password: getAuthErrorMessage(authError) });
+        }
+      }
       setError(getAuthErrorMessage(authError));
     } finally {
       setBusy(false);
     }
+
   }
 
   async function refreshVerification() {
@@ -152,6 +240,7 @@ export default function AuthPage() {
           if (profileError instanceof ApiRequestError && profileError.code === 'PROFILE_NOT_FOUND') {
             navigate('/complete-profile', { replace: true });
           } else {
+            logAuthenticationFailure(profileError);
             setError(`${getAuthErrorMessage(profileError)} Your email is verified, but your profile could not be loaded.`);
           }
         }
@@ -159,6 +248,7 @@ export default function AuthPage() {
         setNotice('Verification is not confirmed yet. Open the link in your email, then check again.');
       }
     } catch (authError) {
+      logAuthenticationFailure(authError);
       setError(getAuthErrorMessage(authError));
     } finally {
       setBusy(false);
@@ -177,6 +267,7 @@ export default function AuthPage() {
       await firebaseAuthService.resendVerification(user);
       setNotice(user.emailVerified ? 'This email is already verified.' : 'A new verification link has been sent.');
     } catch (authError) {
+      logAuthenticationFailure(authError);
       setError(getAuthErrorMessage(authError));
     } finally {
       setBusy(false);
@@ -200,6 +291,7 @@ export default function AuthPage() {
       if (profileError instanceof ApiRequestError && profileError.code === 'PROFILE_NOT_FOUND') {
         navigate('/complete-profile', { replace: true });
       } else {
+        logAuthenticationFailure(profileError);
         setError(`${getAuthErrorMessage(profileError)} You are signed in, but your profile could not be loaded.`);
       }
     } finally {
@@ -216,6 +308,7 @@ export default function AuthPage() {
       setProfile(null);
       setNotice('You have signed out.');
     } catch (authError) {
+      logAuthenticationFailure(authError);
       setError(getAuthErrorMessage(authError));
     } finally {
       setBusy(false);
@@ -248,10 +341,10 @@ export default function AuthPage() {
           {mode === 'verify' && 'Verify your email before using protected student features.'}
         </p>
 
-        {!configured && (
-          <div className="auth-alert auth-alert-info" role="status">
-            Authentication needs Firebase setup. Copy the values from your Firebase web app into the project’s <code>.env</code> file, then restart Vite. No credentials are configured here, so sign-in is unavailable.
-          </div>
+        {!configured && mode !== 'verify' && (
+          <p className="auth-unavailable-note" role="status">
+            Account access is temporarily unavailable. Please try again later.
+          </p>
         )}
 
         {mode === 'verify' ? (
@@ -306,27 +399,93 @@ export default function AuthPage() {
             {mode === 'register' && (
               <label>
                 Full name
-                <input autoComplete="name" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Your name" required />
+                <input
+                  id="auth-full-name"
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(event) => updateField('fullName', event.target.value)}
+                  placeholder="Your name"
+                  aria-invalid={Boolean(fieldErrors.fullName)}
+                  aria-describedby={fieldErrors.fullName ? 'auth-full-name-error' : undefined}
+                  required
+                />
+                {fieldErrors.fullName && <span className="auth-field-error" id="auth-full-name-error">{fieldErrors.fullName}</span>}
               </label>
             )}
             <label>
-              Email address
-              <input autoComplete="email" inputMode="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
+              <span>Email address</span>
+              <input
+                id="auth-email"
+                autoComplete="email"
+                inputMode="email"
+                type="email"
+                value={email}
+                onChange={(event) => updateField('email', event.target.value)}
+                placeholder="you@example.com"
+                aria-invalid={Boolean(fieldErrors.email)}
+                aria-describedby={fieldErrors.email ? 'auth-email-error' : undefined}
+                required
+              />
+              {fieldErrors.email && <span className="auth-field-error" id="auth-email-error">{fieldErrors.email}</span>}
             </label>
             {mode !== 'forgot' && (
               <label>
-                Password
-                <input autoComplete={mode === 'register' ? 'new-password' : 'current-password'} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" minLength={8} required />
+                <span>Password</span>
+                <PasswordInput
+                  id="auth-password"
+                  value={password}
+                  onChange={(value) => updateField('password', value)}
+                  autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                  placeholder={mode === 'register' ? 'Create a strong password' : 'Enter your password'}
+                  minLength={mode === 'register' ? 8 : undefined}
+                  invalid={Boolean(fieldErrors.password)}
+                  describedBy={[
+                    mode === 'register' ? 'auth-password-requirements' : '',
+                    fieldErrors.password ? 'auth-password-error' : '',
+                  ].filter(Boolean).join(' ') || undefined}
+                />
+                {fieldErrors.password && <span className="auth-field-error" id="auth-password-error">{fieldErrors.password}</span>}
+                {mode === 'register' && (
+                  <ul className="password-requirements" id="auth-password-requirements" aria-label="Password requirements">
+                    {passwordRequirements.map((requirement) => {
+                      const satisfied = requirement.test(password);
+                      return (
+                        <li className={satisfied ? 'requirement-met' : ''} key={requirement.label}>
+                          <span aria-hidden="true">{satisfied ? '✓' : '○'}</span>
+                          {requirement.label}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </label>
             )}
             {mode === 'register' && (
               <label>
-                Confirm password
-                <input autoComplete="new-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Enter your password again" minLength={8} required />
+                <span>Confirm password</span>
+                <PasswordInput
+                  id="auth-confirm-password"
+                  value={confirmPassword}
+                  onChange={(value) => updateField('confirmPassword', value)}
+                  autoComplete="new-password"
+                  placeholder="Enter your password again"
+                  minLength={8}
+                  invalid={Boolean(fieldErrors.confirmPassword)}
+                  describedBy={fieldErrors.confirmPassword ? 'auth-confirm-password-error' : undefined}
+                />
+                {fieldErrors.confirmPassword && (
+                  <span className="auth-field-error" id="auth-confirm-password-error">{fieldErrors.confirmPassword}</span>
+                )}
               </label>
             )}
             {mode === 'login' && (
               <div className="auth-inline-link"><Link to="/forgot-password">Forgot password?</Link></div>
+            )}
+            {(mode === 'register' || mode === 'login') && (
+              <p className="auth-privacy-note">
+                <strong>Note:</strong> Your password is used by Firebase Authentication and is never stored in your Campus Vault profile or shown to other students.
+                Your email links your account to your academic profile and study activity Campus Vault saves for you.
+              </p>
             )}
             <button className="button button-primary auth-submit" type="submit" disabled={!configured || busy}>
               {busy ? 'Please wait…' : mode === 'register' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Sign in'}

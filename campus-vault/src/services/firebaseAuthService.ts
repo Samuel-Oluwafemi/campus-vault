@@ -75,19 +75,21 @@ export const firebaseAuthService = {
 export function getAuthErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) return 'Authentication could not be completed. Please try again.';
 
-  if (error.name === 'FirebaseConfigurationError') return error.message;
+  if (error.name === 'FirebaseConfigurationError') return 'Account access is temporarily unavailable. Please try again later.';
   if (error instanceof ApiRequestError) return error.message;
 
   const code = 'code' in error && typeof error.code === 'string' ? error.code : '';
   switch (code) {
     case 'auth/email-already-in-use':
-      return 'An account already exists for this email. Try signing in instead.';
+      return 'An account already uses this email. Sign in or reset your password.';
     case 'auth/invalid-email':
       return 'Enter a valid email address.';
     case 'auth/weak-password':
-      return 'Choose a stronger password with at least 8 characters.';
+      return 'Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.';
     case 'auth/invalid-credential':
     case 'auth/invalid-login-credentials':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
       return 'Email or password is incorrect.';
     case 'auth/too-many-requests':
       return 'Too many attempts. Wait a little while, then try again.';
@@ -99,6 +101,8 @@ export function getAuthErrorMessage(error: unknown): string {
       return 'This address is not authorized in Firebase. Add the current host to Firebase Authentication authorized domains.';
     case 'auth/user-disabled':
       return 'This account has been disabled. Contact the Campus Vault administrator.';
+    case 'auth/invalid-password':
+      return 'Check your password and try again.';
     default:
       return 'Authentication could not be completed. Please try again.';
   }

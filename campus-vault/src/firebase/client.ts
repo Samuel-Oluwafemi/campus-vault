@@ -12,6 +12,12 @@ const configured = Object.values(config).every(
   (value) => Boolean(value) && !value.startsWith('your-'),
 );
 
+if (!configured) {
+  console.error(
+    '[Campus Vault] Firebase Authentication is not configured. Set the required VITE_FIREBASE_* build environment variables.',
+  );
+}
+
 const app = configured
   ? getApps().length > 0
     ? getApp()

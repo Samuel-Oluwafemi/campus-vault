@@ -344,11 +344,12 @@ After registration, students complete their academic profile.
 Include:
 
 - Password visibility toggle.
-- Password requirements.
+- Password requirements: at least 8 characters, one uppercase letter, one lowercase letter, one number, and one symbol.
 - Form validation.
 - Loading state.
 - Clear error messages.
 - Link to login.
+- A privacy note explaining that the password is handled by Firebase Authentication and is not stored in the Campus Vault profile.
 
 If email verification is required, show a clear verification instruction.
 
@@ -368,6 +369,7 @@ Additional interactions:
 - Show/hide password.
 - Login loading state.
 - Authentication error feedback.
+- Invalid credentials must be reported in a clear, red error state without revealing whether the email or password alone was incorrect.
 
 After successful login, redirect users to the correct application area based on their role.
 

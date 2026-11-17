@@ -142,9 +142,9 @@ export default function CompleteProfilePage() {
         </p>
 
         {!configured && (
-          <div className="auth-alert auth-alert-info" role="status">
-            Authentication needs Firebase setup. Configure the project environment and restart Vite before completing a profile.
-          </div>
+          <p className="auth-unavailable-note" role="status">
+            Account services are temporarily unavailable. Please try again later.
+          </p>
         )}
 
         {loading ? (
@@ -193,7 +193,7 @@ export default function CompleteProfilePage() {
                 ))}
               </select>
             </label>
-            <button className="button button-primary auth-submit" type="submit" disabled={busy}>
+            <button className="button button-primary auth-submit" type="submit" disabled={!configured || busy}>
               {busy ? 'Saving…' : profile ? 'Update academic profile' : 'Create student profile'}
             </button>
             <button className="auth-quiet-button" type="button" onClick={logout} disabled={busy}>
