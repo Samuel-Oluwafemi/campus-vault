@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { firebaseAuthService } from '@/services/firebaseAuthService';
 import { useAuthUser } from '@/hooks/useAuthUser';
@@ -10,6 +10,22 @@ export default function SiteHeader() {
   const { pathname } = useLocation();
   const [logoutError, setLogoutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function closeMenus(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!accountMenuRef.current?.contains(target)) setAccountOpen(false);
+      if (!mobileNavRef.current?.contains(target)) setMobileNavOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeMenus);
+    return () => document.removeEventListener('pointerdown', closeMenus);
+  }, []);
 
   async function logout() {
     setSigningOut(true);
@@ -64,20 +80,37 @@ export default function SiteHeader() {
         {auth.status === 'loading' ? (
           <span className="header-auth-loading" role="status">Checking account…</span>
         ) : verified ? (
-          <details className="account-menu">
-            <summary aria-label={`Open account menu for ${accountName}`}>
+          <div className="account-menu" ref={accountMenuRef}>
+            <button
+              className="account-trigger"
+              type="button"
+              aria-label={`${accountOpen ? 'Close' : 'Open'} account menu for ${accountName}`}
+              aria-expanded={accountOpen}
+              onClick={() => setAccountOpen((open) => !open)}
+            >
               <span className="account-avatar" aria-hidden="true">{initials || 'CV'}</span>
               <span className="account-name">{accountName}</span>
-              <span className="account-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div className="account-menu-panel">
-              <span className="account-menu-email">{auth.user.email}</span>
-              <Link to="/complete-profile">Academic profile</Link>
-              <button type="button" onClick={logout} disabled={signingOut}>
-                {signingOut ? 'Signing out…' : 'Sign out'}
-              </button>
-            </div>
-          </details>
+              <span className={`account-chevron${accountOpen ? ' is-open' : ''}`} aria-hidden="true">⌄</span>
+            </button>
+            {accountOpen && (
+              <div className="account-menu-panel">
+                <div className="account-menu-heading">
+                  <span>Account</span>
+                  <button
+                    className="menu-close-button"
+                    type="button"
+                    aria-label="Close account menu"
+                    onClick={() => setAccountOpen(false)}
+                  >×</button>
+                </div>
+                <span className="account-menu-email">{auth.user.email}</span>
+                <Link to="/complete-profile" onClick={() => setAccountOpen(false)}>Academic profile</Link>
+                <button type="button" onClick={logout} disabled={signingOut}>
+                  {signingOut ? 'Signing out…' : 'Sign out'}
+                </button>
+              </div>
+            )}
+          </div>
         ) : signedIn ? (
           <>
             <Link className="header-signin" to="/verify-email">Verify email</Link>
@@ -92,22 +125,34 @@ export default function SiteHeader() {
           </>
         )}
         {verified && (
-          <details className="mobile-nav">
-            <summary aria-label="Open student navigation">
-              <span className="hamburger-icon" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <span className="sr-only">Menu</span>
-            </summary>
+          <div className="mobile-nav" ref={mobileNavRef}>
+            <button
+              className="mobile-nav-trigger"
+              type="button"
+              aria-label={`${mobileNavOpen ? 'Close' : 'Open'} student navigation`}
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? (
+                <span className="menu-close-mark" aria-hidden="true">×</span>
+              ) : (
+                <span className="hamburger-icon" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              )}
+              <span className="sr-only">{mobileNavOpen ? 'Close menu' : 'Menu'}</span>
+            </button>
+            {mobileNavOpen && (
             <nav aria-label="Student navigation">
-              <Link to="/dashboard">Dashboard</Link>
-              <Link to="/library">Library</Link>
-              <Link to="/contribute">Contribute</Link>
-              <Link to="/my-submissions">My submissions</Link>
+              <Link to="/dashboard" onClick={() => setMobileNavOpen(false)}>Dashboard</Link>
+              <Link to="/library" onClick={() => setMobileNavOpen(false)}>Library</Link>
+              <Link to="/contribute" onClick={() => setMobileNavOpen(false)}>Contribute</Link>
+              <Link to="/my-submissions" onClick={() => setMobileNavOpen(false)}>My submissions</Link>
             </nav>
-          </details>
+            )}
+          </div>
         )}
       </div>
       {(auth.status === 'error' || logoutError) && (

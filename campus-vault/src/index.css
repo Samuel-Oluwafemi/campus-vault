@@ -691,20 +691,21 @@ a:focus-visible {
   position: relative;
 }
 
-.mobile-nav summary {
+.mobile-nav-trigger {
   display: grid;
   width: 34px;
   height: 34px;
   place-items: center;
   border: 1px solid #dfe6ed;
   border-radius: 8px;
+  background: #fff;
   color: #48566a;
   cursor: pointer;
-  list-style: none;
 }
 
-.mobile-nav summary::-webkit-details-marker {
-  display: none;
+.mobile-nav-trigger:hover {
+  border-color: #c8d5e0;
+  background: #f8fafc;
 }
 
 .mobile-nav nav {
@@ -748,6 +749,13 @@ a:focus-visible {
   background: currentColor;
 }
 
+.menu-close-mark {
+  color: #b33a3a;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -780,19 +788,22 @@ a:focus-visible {
   position: relative;
 }
 
-.account-menu summary {
+.account-trigger {
   display: flex;
   align-items: center;
   gap: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: #39495e;
   cursor: pointer;
+  font: inherit;
   font-size: 11px;
   font-weight: 650;
-  list-style: none;
 }
 
-.account-menu summary::-webkit-details-marker {
-  display: none;
+.account-trigger:hover .account-avatar {
+  box-shadow: 0 0 0 3px #e8eef4;
 }
 
 .account-avatar {
@@ -816,6 +827,11 @@ a:focus-visible {
 
 .account-chevron {
   color: #77869a;
+  transition: transform 160ms ease;
+}
+
+.account-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 .account-menu-panel {
@@ -831,6 +847,36 @@ a:focus-visible {
   border-radius: 9px;
   background: #fff;
   box-shadow: 0 14px 35px #0f172a1a;
+}
+
+.account-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 7px 10px;
+  border-bottom: 1px solid #edf0f3;
+  color: #48566a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-close-button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #b33a3a;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.menu-close-button:hover {
+  background: #fff1f1;
 }
 
 .account-menu-panel > a,
@@ -1997,6 +2043,10 @@ a:focus-visible {
     display: none;
   }
 
+  .account-trigger {
+    gap: 0;
+  }
+
   .student-page-heading,
   .dashboard-welcome {
     align-items: flex-start;
@@ -2285,11 +2335,11 @@ a:focus-visible {
   font-size: 17px;
 }
 
-.account-menu summary,
+.account-trigger,
 .account-menu-panel > a,
 .account-menu-panel > button,
 .account-menu-email,
-.mobile-nav summary,
+.mobile-nav-trigger,
 .mobile-nav nav a {
   font-size: 13px;
 }
