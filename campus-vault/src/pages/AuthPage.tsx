@@ -331,12 +331,13 @@ export default function AuthPage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-card" aria-labelledby="auth-title">
+      <div className="auth-shell">
         <Link className="auth-back-link" to="/">← Back to Campus Vault</Link>
-        <Link className="brand auth-brand" to="/" aria-label="Campus Vault home">
-          <span className="brand-mark" aria-hidden="true">CV</span>
-          <span>Campus Vault</span>
-        </Link>
+        <section className="auth-card" aria-labelledby="auth-title">
+          <Link className="brand auth-brand" to="/" aria-label="Campus Vault home">
+            <span className="brand-mark" aria-hidden="true">CV</span>
+            <span>Campus Vault</span>
+          </Link>
 
         <p className="eyebrow auth-eyebrow">STUDENT ACCESS</p>
         <h1 id="auth-title">{title}</h1>
@@ -513,7 +514,8 @@ export default function AuthPage() {
             <>New to Campus Vault? <Link to="/register">Create an account</Link></>
           )}
         </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

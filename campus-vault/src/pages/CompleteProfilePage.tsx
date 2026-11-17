@@ -128,12 +128,13 @@ export default function CompleteProfilePage() {
 
   return (
     <main className="auth-page">
-      <section className="auth-card" aria-labelledby="profile-title">
+      <div className="auth-shell">
         <Link className="auth-back-link" to="/">← Back to Campus Vault</Link>
-        <Link className="brand auth-brand" to="/" aria-label="Campus Vault home">
-          <span className="brand-mark" aria-hidden="true">CV</span>
-          <span>Campus Vault</span>
-        </Link>
+        <section className="auth-card" aria-labelledby="profile-title">
+          <Link className="brand auth-brand" to="/" aria-label="Campus Vault home">
+            <span className="brand-mark" aria-hidden="true">CV</span>
+            <span>Campus Vault</span>
+          </Link>
 
         <p className="eyebrow auth-eyebrow">STUDENT PROFILE</p>
         <h1 id="profile-title">Complete your academic profile</h1>
@@ -205,7 +206,8 @@ export default function CompleteProfilePage() {
 
         {error && <p className="auth-alert auth-alert-error" role="alert">{error}</p>}
         {notice && <p className="auth-alert auth-alert-success" role="status">{notice}</p>}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
