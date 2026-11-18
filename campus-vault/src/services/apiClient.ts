@@ -164,7 +164,8 @@ async function requestApi<T>(
     );
   }
 
-  const data = responseSchema.safeParse(envelope.data);
+  const payloadData = payload as { data?: unknown };
+  const data = responseSchema.safeParse(payloadData.data);
   if (!data.success) {
     throw new ApiRequestError(
       'The backend response did not match the expected data format.',

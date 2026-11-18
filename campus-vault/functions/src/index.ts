@@ -99,7 +99,7 @@ function response(data: unknown, status: number, origin: string | null, env: Env
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
   });
-  if (origin && origin === env.APP_ORIGIN) {
+  if (origin && allowedOrigin(origin, env)) {
     headers.set('Access-Control-Allow-Origin', origin);
     headers.set('Vary', 'Origin');
   }
@@ -117,7 +117,9 @@ function errorResponse(
 }
 
 function allowedOrigin(origin: string | null, env: Env): boolean {
-  return origin === null || origin === env.APP_ORIGIN;
+  return origin === null ||
+    origin === env.APP_ORIGIN ||
+    origin === 'http://localhost:5173';
 }
 
 export async function authenticateRequest(
