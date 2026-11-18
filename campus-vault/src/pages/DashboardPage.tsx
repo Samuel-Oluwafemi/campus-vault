@@ -107,9 +107,7 @@ export default function DashboardPage() {
             <p className="eyebrow">QUICK ACCESS</p>
             <h2>Keep your study flow moving.</h2>
             <div className="quick-access-links">
-              <Link to="/library"><span>Browse all resources</span><span aria-hidden="true">→</span></Link>
-              <Link to="/contribute"><span>Contribute a resource</span><span aria-hidden="true">→</span></Link>
-              <Link to="/my-submissions"><span>Track my submissions</span><span aria-hidden="true">→</span></Link>
+              <Link to={`/library?level=${profile.level}`}><span>Browse {profile.level} level resources</span><span aria-hidden="true">→</span></Link>
             </div>
           </article>
         </aside>

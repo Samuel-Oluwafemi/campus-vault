@@ -1,6 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { z } from 'zod';
 import { getGeologyCourseCatalog, type CatalogCourse } from '@/services/catalogService';
+import { apiRequest, ApiRequestError } from '@/services/apiClient';
+
+const resourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  departmentId: z.string(),
+  courseId: z.string(),
+  level: z.number(),
+  semester: z.string(),
+  resourceType: z.string(),
+  fileName: z.string(),
+  storageKey: z.string(),
+  fileSize: z.number(),
+  createdAt: z.string(),
+});
+
+const resourcePageSchema = z.object({
+  items: z.array(resourceSchema),
+  nextCursor: z.string().nullable(),
+});
 
 const resourceTypes = [
   ['lecture-note', 'Lecture notes'],
@@ -12,13 +34,17 @@ const resourceTypes = [
 ] as const;
 
 export default function LibraryPage() {
+  const [searchParams] = useSearchParams();
   const [courses, setCourses] = useState<CatalogCourse[]>([]);
+  const [resources, setResources] = useState<z.infer<typeof resourceSchema>[]>([]);
+  const [resourceLoading, setResourceLoading] = useState(true);
+  const [resourceError, setResourceError] = useState('');
   const [unassignedPastQuestionReferences, setUnassignedPastQuestionReferences] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('');
-  const [level, setLevel] = useState('');
+  const [level, setLevel] = useState(searchParams.get('level') ?? '');
   const [semester, setSemester] = useState('');
   const [courseId, setCourseId] = useState('');
   const [session, setSession] = useState('');
@@ -42,6 +68,16 @@ export default function LibraryPage() {
   useEffect(() => {
     const controller = new AbortController();
     void loadCatalog(controller.signal);
+    apiRequest('/resources', resourcePageSchema, { signal: controller.signal })
+      .then((page) => setResources(page.items))
+      .catch((loadError) => {
+        if (!controller.signal.aborted) {
+          setResourceError(loadError instanceof ApiRequestError ? loadError.message : 'Approved resources could not be loaded.');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setResourceLoading(false);
+      });
     return () => controller.abort();
   }, []);
 
@@ -57,6 +93,33 @@ export default function LibraryPage() {
       return matchesSearch && matchesDepartment && matchesLevel && matchesSemester && matchesCourse;
     });
   }, [courses, department, level, semester, courseId, search]);
+
+  const visibleResources = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return resources.filter((resource) => {
+      const course = courses.find((item) => item.id === resource.courseId);
+      return (!department || resource.departmentId === department)
+        && (!level || resource.level === Number(level))
+        && (!semester || resource.semester === semester)
+        && (!courseId || resource.courseId === courseId || course?.code === resource.courseId)
+        && (!resourceType || resource.resourceType === resourceType)
+        && (!term || [resource.title, resource.description, resource.fileName, course?.code]
+          .some((value) => value?.toLowerCase().includes(term)));
+    });
+  }, [resources, courses, department, level, semester, courseId, resourceType, search]);
+
+  async function openResource(resourceId: string, kind: 'preview' | 'download') {
+    try {
+      const grant = await apiRequest(
+        `/resources/${encodeURIComponent(resourceId)}/${kind}`,
+        z.object({ url: z.string().url(), expiresAt: z.string(), kind: z.enum(['preview', 'download']) }),
+        { method: 'POST' },
+      );
+      window.open(grant.url, '_blank', 'noopener,noreferrer');
+    } catch (accessError) {
+      setResourceError(accessError instanceof ApiRequestError ? accessError.message : 'The resource could not be opened.');
+    }
+  }
 
   function clearFilters() {
     setSearch('');
@@ -151,16 +214,44 @@ export default function LibraryPage() {
             <p className="eyebrow">APPROVED MATERIALS</p>
             <h2 id="resources-heading">Resources</h2>
           </div>
-          <span className="resource-count">Feed not connected</span>
+          <span className="resource-count">{visibleResources.length} available</span>
         </div>
-        <div className="resource-empty-state">
-          <span className="empty-state-icon" aria-hidden="true">⌕</span>
-          <h3>Approved resources are not connected yet</h3>
-          <p>
-            This page will list materials after the approved-resource feed is connected and files are
-            uploaded, reviewed, and approved. Reference-folder files are not hosted or available to open.
-          </p>
-        </div>
+        {resourceLoading ? (
+          <p className="catalog-message" role="status">Loading approved resources…</p>
+        ) : resourceError ? (
+          <p className="catalog-error" role="alert">{resourceError}</p>
+        ) : visibleResources.length ? (
+          <div className="catalog-grid">
+            {visibleResources.map((resource) => (
+              <article className="catalog-course" key={resource.id}>
+                <div className="catalog-course-topline">
+                  <span className="catalog-course-code">{resource.resourceType}</span>
+                  <span className="catalog-status">Approved</span>
+                </div>
+                <h3>{resource.title}</h3>
+                {resource.description && <p>{resource.description}</p>}
+                <dl>
+                  <div><dt>Level</dt><dd>{resource.level}</dd></div>
+                  <div><dt>File</dt><dd>{resource.fileName}</dd></div>
+                </dl>
+                <div className="feature-status-actions">
+                  <button className="button button-primary" type="button" onClick={() => void openResource(resource.id, 'preview')}>
+                    Preview
+                  </button>
+                  <button className="button button-secondary" type="button" onClick={() => void openResource(resource.id, 'download')}>
+                    Download
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="resource-empty-state">
+            <span className="empty-state-icon" aria-hidden="true">⌕</span>
+            <h3>No approved resources match these filters</h3>
+            <p>Resources appear here after they are uploaded and approved in the admin workflow.</p>
+          </div>
+        )}
       </section>
 
       <section className="course-index" aria-labelledby="course-index-heading">

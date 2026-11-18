@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { firebaseAuthService } from '@/services/firebaseAuthService';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useToast } from '@/components/feedback/ToastProvider';
+import { profileService } from '@/services/profileService';
 
 export default function SiteHeader() {
   const auth = useAuthUser();
@@ -10,6 +11,7 @@ export default function SiteHeader() {
   const { pathname } = useLocation();
   const [logoutError, setLogoutError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
+  const [accountRole, setAccountRole] = useState<'student' | 'contributor' | 'admin'>('student');
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -26,6 +28,24 @@ export default function SiteHeader() {
     document.addEventListener('pointerdown', closeMenus);
     return () => document.removeEventListener('pointerdown', closeMenus);
   }, []);
+
+  useEffect(() => {
+    if (auth.status !== 'signedIn') {
+      setAccountRole('student');
+      return;
+    }
+    let active = true;
+    void profileService.getCurrentProfile(auth.user)
+      .then((profile) => {
+        if (active) setAccountRole(profile.role);
+      })
+      .catch(() => {
+        if (active) setAccountRole('student');
+      });
+    return () => {
+      active = false;
+    };
+  }, [auth.status, auth.status === 'signedIn' ? auth.user.uid : null]);
 
   async function logout() {
     setSigningOut(true);
@@ -66,6 +86,9 @@ export default function SiteHeader() {
             <Link to="/library" aria-current={pathname === '/library' ? 'page' : undefined}>Library</Link>
             <Link to="/contribute" aria-current={pathname === '/contribute' ? 'page' : undefined}>Contribute</Link>
             <Link to="/my-submissions" aria-current={pathname === '/my-submissions' ? 'page' : undefined}>My submissions</Link>
+            {accountRole === 'admin' && (
+              <Link to="/admin/resources" aria-current={pathname === '/admin/resources' ? 'page' : undefined}>Admin</Link>
+            )}
           </>
         ) : (
           <>
@@ -150,6 +173,9 @@ export default function SiteHeader() {
               <Link to="/library" onClick={() => setMobileNavOpen(false)}>Library</Link>
               <Link to="/contribute" onClick={() => setMobileNavOpen(false)}>Contribute</Link>
               <Link to="/my-submissions" onClick={() => setMobileNavOpen(false)}>My submissions</Link>
+              {accountRole === 'admin' && (
+                <Link to="/admin/resources" onClick={() => setMobileNavOpen(false)}>Admin resources</Link>
+              )}
             </nav>
             )}
           </div>

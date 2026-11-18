@@ -5,6 +5,7 @@
   "compatibility_date": "2025-03-01",
   "vars": {
     "APP_ORIGIN": "http://localhost:5173",
+    "ADMIN_EMAILS": "samuelkeller47@gmail.com",
     "SUPABASE_STORAGE_BUCKET": "campus-vault-resources",
     "SUPABASE_URL": "https://uakygoitcsnvnhnnycaq.supabase.co"
   },
@@ -12,6 +13,7 @@
     "production": {
       "vars": {
         "APP_ORIGIN": "https://campus-vault1.netlify.app",
+        "ADMIN_EMAILS": "samuelkeller47@gmail.com",
         "SUPABASE_STORAGE_BUCKET": "campus-vault-resources",
         "SUPABASE_URL": "https://uakygoitcsnvnhnnycaq.supabase.co"
       }
