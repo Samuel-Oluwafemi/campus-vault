@@ -4,12 +4,16 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-03-01",
   "vars": {
-    "APP_ORIGIN": "http://localhost:5173"
+    "APP_ORIGIN": "http://localhost:5173",
+    "SUPABASE_STORAGE_BUCKET": "campus-vault-resources",
+    "SUPABASE_URL": "https://uakygoitcsnvnhnnycaq.supabase.co"
   },
   "env": {
     "production": {
       "vars": {
-        "APP_ORIGIN": "https://campus-vault1.netlify.app"
+        "APP_ORIGIN": "https://campus-vault1.netlify.app",
+        "SUPABASE_STORAGE_BUCKET": "campus-vault-resources",
+        "SUPABASE_URL": "https://uakygoitcsnvnhnnycaq.supabase.co"
       }
     }
   }

@@ -19,7 +19,7 @@ const errorEnvelopeSchema = z.object({
 
 interface ApiRequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
-  body?: unknown;
+  body?: unknown | FormData;
   signal?: AbortSignal;
 }
 
@@ -110,14 +110,20 @@ async function requestApi<T>(
   const token = user ? await user.getIdToken() : '';
   const headers = new Headers({ Accept: 'application/json', Authorization: `Bearer ${token}` });
   if (!token) headers.delete('Authorization');
-  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
+  if (options.body !== undefined && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   let response: Response;
   try {
     response = await fetch(url, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined
+        ? undefined
+        : options.body instanceof FormData
+          ? options.body
+          : JSON.stringify(options.body),
       signal: options.signal,
     });
   } catch (error) {
@@ -158,7 +164,7 @@ async function requestApi<T>(
     );
   }
 
-  const data = responseSchema.safeParse(envelope.data.data);
+  const data = responseSchema.safeParse(envelope.data);
   if (!data.success) {
     throw new ApiRequestError(
       'The backend response did not match the expected data format.',

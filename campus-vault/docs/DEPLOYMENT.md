@@ -56,3 +56,20 @@ routes. Approved resource metadata, file storage, previews, and downloads are
 not deployed. The Geology PDFs and past questions in the local reference folder
 are filename references only; they are not included in the frontend or Worker
 deployment.
+
+## Supabase file storage
+
+Supabase is used only for private uploaded files. Firebase Authentication,
+Firestore profiles, and the Worker API remain the source of truth for users and
+resource metadata. Create a private Supabase Storage bucket named
+`campus-vault-resources`, then store these values as Cloudflare Worker secrets:
+
+```powershell
+cd campus-vault/functions
+npx wrangler secret put SUPABASE_URL --env production
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env production
+```
+
+Never put the Supabase service-role key in Netlify, frontend variables, GitHub,
+or this repository. The resource upload and signed preview/download routes will
+use the Worker secret after the bucket is provisioned.

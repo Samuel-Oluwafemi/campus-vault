@@ -1,8 +1,10 @@
 import { createRemoteJWKSet, errors as joseErrors, importPKCS8, jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { provisionalGeologyCourses, provisionalGeologyPastQuestionReferences } from './catalog.ts';
+import type { SupabaseStorageEnv } from './supabaseStorage.ts';
+import { createPrivateSignedUrl, removePrivateObject, uploadPrivateObject, SupabaseStorageError } from './supabaseStorage.ts';
 
-interface Env {
+interface Env extends SupabaseStorageEnv {
   APP_ORIGIN?: string;
   FIREBASE_PROJECT_ID?: string;
   FIREBASE_SERVICE_ACCOUNT_EMAIL?: string;
@@ -30,6 +32,14 @@ const profileSchema = z.object({
 
 const createProfileBodySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
+}).strict();
+
+const submissionFormSchema = z.object({
+  resourceTitle: z.string().trim().min(3).max(120),
+  description: z.string().trim().max(500).default(''),
+  courseId: z.string().trim().min(1),
+  academicSessionId: z.string().trim().min(1),
+  resourceType: z.enum(['lecture-note', 'past-question', 'test-question', 'handout', 'study-material', 'other']),
 }).strict();
 
 export const updateAcademicProfileBodySchema = z.object({
@@ -345,6 +355,23 @@ export function firestoreValue(value: string | number | boolean | null): Record<
   return { stringValue: value };
 }
 
+function firestoreString(fields: Record<string, unknown>, name: string): string | null {
+  const value = fields[name] as { stringValue?: unknown } | undefined;
+  return typeof value?.stringValue === 'string' ? value.stringValue : null;
+}
+
+async function listFirestoreDocuments(env: Env, collection: string): Promise<Array<{ id: string; fields: Record<string, unknown> }>> {
+  const result = await firestoreRequest(env, `${collection}?pageSize=100`);
+  if (!result.ok) {
+    throw new ProfileStoreError('The resource records could not be loaded.', 503, 'FIRESTORE_UNAVAILABLE');
+  }
+  const payload = await result.json() as { documents?: Array<{ name?: string; fields?: Record<string, unknown> }> };
+  return (payload.documents ?? []).map((document) => ({
+    id: document.name?.split('/').pop() ?? '',
+    fields: document.fields ?? {},
+  })).filter((document) => document.id);
+}
+
 async function createProfile(
   env: Env,
   claims: FirebaseClaims,
@@ -412,6 +439,9 @@ async function updateAcademicProfile(
 }
 
 function profileStoreErrorResponse(error: unknown, origin: string | null, env: Env): Response {
+  if (error instanceof SupabaseStorageError) {
+    return errorResponse(error.code, error.message, error.status, origin, env);
+  }
   if (error instanceof ProfileStoreError) {
     return errorResponse(error.code, error.message, error.status, origin, env);
   }
@@ -479,11 +509,21 @@ export function createWorker(
     const isSessionRequest = url.pathname === '/api/v1/auth/session' && request.method === 'GET';
     const isProfileCreateRequest = url.pathname === '/api/v1/auth/profile' && request.method === 'POST';
     const isProfileUpdateRequest = url.pathname === '/api/v1/auth/profile' && request.method === 'PATCH';
-    if (!isSessionRequest && !isProfileCreateRequest && !isProfileUpdateRequest) {
+    const isSubmissionCreateRequest = url.pathname === '/api/v1/submissions' && request.method === 'POST';
+    const isSubmissionListRequest = url.pathname === '/api/v1/submissions/mine' && request.method === 'GET';
+    const isResourceListRequest = url.pathname === '/api/v1/resources' && request.method === 'GET';
+    const accessMatch = url.pathname.match(/^\/api\/v1\/resources\/([^/]+)\/(preview|download)$/);
+    const isResourceAccessRequest = Boolean(accessMatch && request.method === 'POST');
+    if (!isSessionRequest && !isProfileCreateRequest && !isProfileUpdateRequest &&
+      !isSubmissionCreateRequest && !isSubmissionListRequest && !isResourceListRequest && !isResourceAccessRequest) {
       const knownPath =
         url.pathname === '/api/v1/auth/session' ||
         url.pathname === '/api/v1/auth/profile' ||
-        url.pathname === '/api/v1/courses';
+        url.pathname === '/api/v1/courses' ||
+        url.pathname === '/api/v1/submissions' ||
+        url.pathname === '/api/v1/submissions/mine' ||
+        url.pathname === '/api/v1/resources' ||
+        /^\/api\/v1\/resources\/[^/]+\/(preview|download)$/.test(url.pathname);
       return knownPath
         ? errorResponse('METHOD_NOT_ALLOWED', 'This method is not supported for the route.', 405, origin, env)
         : errorResponse('NOT_FOUND', 'The requested API route was not found.', 404, origin, env);
@@ -493,6 +533,162 @@ export function createWorker(
     if ('response' in authentication) return authentication.response;
 
     try {
+      if (isSubmissionCreateRequest || isSubmissionListRequest || isResourceListRequest || isResourceAccessRequest) {
+        const profile = await readProfile(env, authentication.claims.sub);
+        if (!profile.isActive) {
+          return errorResponse('ACCOUNT_INACTIVE', 'This account is not active.', 403, origin, env);
+        }
+
+        if (isResourceListRequest) {
+          const documents = await listFirestoreDocuments(env, 'resources');
+          const items = documents
+            .filter((document) => firestoreString(document.fields, 'approvalStatus') === 'approved')
+            .map((document) => ({
+              id: document.id,
+              title: firestoreString(document.fields, 'title') ?? '',
+              description: firestoreString(document.fields, 'description') ?? '',
+              departmentId: firestoreString(document.fields, 'departmentId') ?? 'geology',
+              courseId: firestoreString(document.fields, 'courseId') ?? '',
+              level: Number(firestoreString(document.fields, 'level') ?? 100),
+              semester: firestoreString(document.fields, 'semester') ?? 'first',
+              academicSessionId: firestoreString(document.fields, 'academicSessionId') ?? '',
+              resourceType: firestoreString(document.fields, 'resourceType') ?? 'other',
+              fileName: firestoreString(document.fields, 'fileName') ?? '',
+              storageKey: firestoreString(document.fields, 'storageKey') ?? '',
+              fileType: firestoreString(document.fields, 'fileType') ?? 'application/pdf',
+              fileSize: Number(firestoreString(document.fields, 'fileSize') ?? 0),
+              uploadedBy: firestoreString(document.fields, 'uploadedBy') ?? '',
+              approvalStatus: 'approved',
+              approvedBy: firestoreString(document.fields, 'approvedBy'),
+              approvedAt: firestoreString(document.fields, 'approvedAt'),
+              downloadCount: Number(firestoreString(document.fields, 'downloadCount') ?? 0),
+              createdAt: firestoreString(document.fields, 'createdAt') ?? new Date().toISOString(),
+              updatedAt: firestoreString(document.fields, 'updatedAt') ?? new Date().toISOString(),
+            }));
+          return response({ success: true, data: { items, nextCursor: null } }, 200, origin, env);
+        }
+
+        if (isSubmissionListRequest) {
+          const documents = await listFirestoreDocuments(env, 'submissions');
+          const items = documents
+            .filter((document) => firestoreString(document.fields, 'uploadedBy') === authentication.claims.sub)
+            .map((document) => ({
+              id: document.id,
+              resourceTitle: firestoreString(document.fields, 'resourceTitle') ?? '',
+              description: firestoreString(document.fields, 'description') ?? '',
+              courseId: firestoreString(document.fields, 'courseId') ?? '',
+              academicSessionId: firestoreString(document.fields, 'academicSessionId') ?? '',
+              resourceType: firestoreString(document.fields, 'resourceType') ?? 'other',
+              fileName: firestoreString(document.fields, 'fileName') ?? '',
+              fileType: firestoreString(document.fields, 'fileType') ?? 'application/pdf',
+              fileSize: Number(firestoreString(document.fields, 'fileSize') ?? 0),
+              storageKey: firestoreString(document.fields, 'storageKey') ?? '',
+              uploadedBy: firestoreString(document.fields, 'uploadedBy') ?? '',
+              status: firestoreString(document.fields, 'status') ?? 'pending',
+              reviewedBy: firestoreString(document.fields, 'reviewedBy'),
+              reviewNote: firestoreString(document.fields, 'reviewNote'),
+              createdAt: firestoreString(document.fields, 'createdAt') ?? new Date().toISOString(),
+              reviewedAt: firestoreString(document.fields, 'reviewedAt'),
+            }));
+          return response({ success: true, data: items }, 200, origin, env);
+        }
+
+        if (isResourceAccessRequest && accessMatch) {
+          const resourceId = accessMatch[1];
+          const kind = accessMatch[2] as 'preview' | 'download';
+          const documents = await listFirestoreDocuments(env, 'resources');
+          const resource = documents.find((document) =>
+            document.id === resourceId && firestoreString(document.fields, 'approvalStatus') === 'approved');
+          if (!resource) {
+            return errorResponse('RESOURCE_NOT_FOUND', 'This resource is unavailable.', 404, origin, env);
+          }
+          const storageKey = firestoreString(resource.fields, 'storageKey');
+          if (!storageKey) {
+            return errorResponse('RESOURCE_INVALID', 'This resource does not have a valid file reference.', 500, origin, env);
+          }
+          const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+          const url = await createPrivateSignedUrl(env, storageKey, 300);
+          return response({ success: true, data: { url, expiresAt, kind } }, 200, origin, env);
+        }
+
+        const form = await request.formData();
+        const input = submissionFormSchema.safeParse({
+          resourceTitle: form.get('resourceTitle'),
+          description: form.get('description') ?? '',
+          courseId: form.get('courseId'),
+          academicSessionId: form.get('academicSessionId'),
+          resourceType: form.get('resourceType'),
+        });
+        if (!input.success) {
+          return errorResponse('VALIDATION_ERROR', 'Check the submission title, course, session, and resource type.', 422, origin, env);
+        }
+        const course = provisionalGeologyCourses.find((item) => item.id === input.data.courseId);
+        if (!course) {
+          return errorResponse('VALIDATION_ERROR', 'Select a valid course.', 422, origin, env);
+        }
+        const file = form.get('file');
+        if (!(file instanceof File) || file.size === 0) {
+          return errorResponse('VALIDATION_ERROR', 'Choose a non-empty PDF file.', 422, origin, env);
+        }
+        if (file.type !== 'application/pdf') {
+          return errorResponse('VALIDATION_ERROR', 'Only PDF files are allowed.', 422, origin, env);
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          return errorResponse('FILE_TOO_LARGE', 'This file is over the 20 MB limit.', 422, origin, env);
+        }
+
+        const submissionId = crypto.randomUUID();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-').replace(/\.{2,}/g, '.');
+        const storageKey = `pending/submissions/${submissionId}-${safeName}`;
+        await uploadPrivateObject(env, storageKey, await file.arrayBuffer(), 'application/pdf');
+
+        const now = new Date().toISOString();
+        const fields = {
+          resourceTitle: firestoreValue(input.data.resourceTitle),
+          description: firestoreValue(input.data.description),
+          courseId: firestoreValue(input.data.courseId),
+          academicSessionId: firestoreValue(input.data.academicSessionId),
+          resourceType: firestoreValue(input.data.resourceType),
+          fileName: firestoreValue(file.name),
+          fileType: firestoreValue('application/pdf'),
+          fileSize: firestoreValue(file.size),
+          storageKey: firestoreValue(storageKey),
+          uploadedBy: firestoreValue(authentication.claims.sub),
+          status: firestoreValue('pending'),
+          reviewedBy: firestoreValue(null),
+          reviewNote: firestoreValue(null),
+          createdAt: { timestampValue: now },
+          reviewedAt: firestoreValue(null),
+        };
+        const createResult = await firestoreRequest(
+          env,
+          `submissions?documentId=${encodeURIComponent(submissionId)}`,
+          { method: 'POST', body: JSON.stringify({ fields }) },
+        );
+        if (!createResult.ok) {
+          await removePrivateObject(env, storageKey);
+          throw new ProfileStoreError('The submission could not be recorded.', 503, 'FIRESTORE_UNAVAILABLE');
+        }
+        const submission = await createResult.json() as { fields: Record<string, unknown> };
+        return response({
+          success: true,
+          data: {
+            id: submissionId,
+            ...input.data,
+            fileName: file.name,
+            fileType: 'application/pdf',
+            fileSize: file.size,
+            storageKey,
+            uploadedBy: authentication.claims.sub,
+            status: 'pending',
+            reviewedBy: null,
+            reviewNote: null,
+            createdAt: now,
+            reviewedAt: null,
+          },
+        }, 201, origin, env);
+      }
+
       if (isSessionRequest) {
         const profile = await readProfile(env, authentication.claims.sub);
         if (!profile.isActive) {
