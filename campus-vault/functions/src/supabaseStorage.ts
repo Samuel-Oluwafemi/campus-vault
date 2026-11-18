@@ -96,22 +96,29 @@ export async function createPrivateSignedUrl(
   const config = storageConfig(env);
   const result = await storageRequest(
     env,
-    `/object/sign/${encodeURIComponent(config.bucket)}`,
+    `/object/sign/${encodeURIComponent(config.bucket)}/${objectPath(path).split('/').map(encodeURIComponent).join('/')}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: expiresInSeconds, path: objectPath(path) }),
+      body: JSON.stringify({ expiresIn: expiresInSeconds }),
     },
   );
   if (!result.ok) {
-    console.error('Supabase signed URL request failed.', result.status);
+    const detail = await result.text().catch(() => '');
+    console.error('Supabase signed URL request failed.', result.status, detail.slice(0, 300));
     throw new SupabaseStorageError('A temporary file access link could not be created.', 503, 'STORAGE_SIGN_FAILED');
   }
   const payload = await result.json() as { signedURL?: unknown };
   if (typeof payload.signedURL !== 'string' || !payload.signedURL) {
     throw new SupabaseStorageError('Supabase returned an invalid file access link.', 503, 'STORAGE_SIGN_FAILED');
   }
-  return new URL(payload.signedURL, `${config.baseUrl}/storage/v1`).toString();
+  if (/^https?:\/\//i.test(payload.signedURL)) {
+    return new URL(payload.signedURL).toString();
+  }
+  const signedPath = payload.signedURL.startsWith('/storage/v1/')
+    ? payload.signedURL
+    : `/storage/v1${payload.signedURL.startsWith('/') ? '' : '/'}${payload.signedURL}`;
+  return new URL(signedPath, config.baseUrl).toString();
 }
 
 export async function removePrivateObject(env: SupabaseStorageEnv, path: string): Promise<void> {
@@ -148,11 +155,12 @@ export async function listPrivateObjects(
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit, offset: 0, sortBy: { column: 'name', order: 'asc' } }),
+        body: JSON.stringify({ prefix: '', limit, offset: 0 }),
       },
     );
     if (!result.ok) {
-      console.error('Supabase object listing failed.', result.status);
+      const detail = await result.text().catch(() => '');
+      console.error('Supabase object listing failed.', result.status, detail.slice(0, 300));
       throw new SupabaseStorageError('The uploaded files could not be listed.', 503, 'STORAGE_LIST_FAILED');
     }
     const payload = await result.json();
