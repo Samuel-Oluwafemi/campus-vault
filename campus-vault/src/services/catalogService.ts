@@ -11,7 +11,7 @@ const courseSchema = z.object({
   status: z.literal('provisional'),
   levelInferred: z.literal(true),
   sourceFiles: z.array(z.string()),
-  resourcesAvailable: z.literal(false),
+  resourcesAvailable: z.boolean(),
 });
 
 const catalogResponseSchema = z.object({

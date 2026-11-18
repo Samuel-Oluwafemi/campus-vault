@@ -145,7 +145,7 @@ test('serves the provisional geology course index publicly with CORS headers', a
   assert.equal(payload.success, true);
   assert.equal(payload.data.departmentId, 'geology');
   assert.equal(payload.data.status, 'provisional');
-  assert.equal(payload.data.courses.length, 7);
+  assert.equal(payload.data.courses.length, 8);
   assert.deepEqual(payload.data.unassignedPastQuestionReferences, [
     '300lv PQ_2025.pdf',
     'Geology 300lvl Past Questions.pdf',
@@ -155,7 +155,7 @@ test('serves the provisional geology course index publicly with CORS headers', a
     assert.equal(course.title, null);
     assert.equal(course.semester, null);
     assert.equal(course.levelInferred, true);
-    assert.equal(course.resourcesAvailable, false);
+    assert.equal(course.resourcesAvailable, course.code === 'GLY 304');
     assert.ok(Array.isArray(course.sourceFiles));
   }
 });

@@ -8,7 +8,7 @@ export interface CourseCatalogEntry {
   status: 'provisional';
   levelInferred: true;
   sourceFiles: string[];
-  resourcesAvailable: false;
+  resourcesAvailable: boolean;
 }
 
 export const provisionalGeologyPastQuestionReferences = [
@@ -17,6 +17,18 @@ export const provisionalGeologyPastQuestionReferences = [
 ];
 
 export const provisionalGeologyCourses: CourseCatalogEntry[] = [
+  {
+    id: 'gly-304',
+    departmentId: 'geology',
+    code: 'GLY 304',
+    title: null,
+    level: 300,
+    semester: null,
+    status: 'provisional',
+    levelInferred: true,
+    sourceFiles: ['GLY 304.pdf', 'FERROUS METALS NOTE.pdf'],
+    resourcesAvailable: true,
+  },
   {
     id: 'gly-305',
     departmentId: 'geology',

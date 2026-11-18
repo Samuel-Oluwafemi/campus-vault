@@ -53,6 +53,17 @@ const adminResourceFormSchema = z.object({
   resourceType: z.enum(['lecture-note', 'past-question', 'test-question', 'handout', 'study-material', 'other']),
 }).strict();
 
+const importAdminResourceSchema = z.object({
+  title: z.string().trim().min(3).max(120),
+  description: z.string().trim().max(500).default(''),
+  fileName: z.string().trim().min(1).max(255),
+  courseId: z.string().trim().min(1).max(80),
+  level: z.union([z.literal(100), z.literal(200), z.literal(300), z.literal(400), z.literal(500)]),
+  semester: z.enum(['first', 'second']),
+  academicSessionId: z.string().trim().min(1).max(30),
+  resourceType: z.enum(['lecture-note', 'past-question', 'test-question', 'handout', 'study-material', 'other']),
+}).strict();
+
 export const updateAcademicProfileBodySchema = z.object({
   departmentId: z.literal('geology').nullable(),
   level: z.union([
@@ -393,7 +404,11 @@ function firestoreNumber(fields: Record<string, unknown>, name: string, fallback
 
 async function listFirestoreDocuments(env: Env, collection: string): Promise<Array<{ id: string; fields: Record<string, unknown> }>> {
   const result = await firestoreRequest(env, `${collection}?pageSize=100`);
+  if (result.status === 404) {
+    return [];
+  }
   if (!result.ok) {
+    console.error('Firestore resource collection read failed.', result.status);
     throw new ProfileStoreError('The resource records could not be loaded.', 503, 'FIRESTORE_UNAVAILABLE');
   }
   const payload = await result.json() as { documents?: Array<{ name?: string; fields?: Record<string, unknown> }> };
@@ -543,11 +558,13 @@ export function createWorker(
     const isSubmissionCreateRequest = url.pathname === '/api/v1/submissions' && request.method === 'POST';
     const isSubmissionListRequest = url.pathname === '/api/v1/submissions/mine' && request.method === 'GET';
     const isAdminResourceCreateRequest = url.pathname === '/api/v1/admin/resources' && request.method === 'POST';
+    const isAdminResourceImportRequest = url.pathname === '/api/v1/admin/resources/import' && request.method === 'POST';
     const isResourceListRequest = url.pathname === '/api/v1/resources' && request.method === 'GET';
     const accessMatch = url.pathname.match(/^\/api\/v1\/resources\/([^/]+)\/(preview|download)$/);
     const isResourceAccessRequest = Boolean(accessMatch && request.method === 'POST');
     if (!isSessionRequest && !isProfileCreateRequest && !isProfileUpdateRequest &&
       !isSubmissionCreateRequest && !isSubmissionListRequest && !isAdminResourceCreateRequest &&
+      !isAdminResourceImportRequest &&
       !isResourceListRequest && !isResourceAccessRequest) {
       const knownPath =
         url.pathname === '/api/v1/auth/session' ||
@@ -556,6 +573,7 @@ export function createWorker(
         url.pathname === '/api/v1/submissions' ||
         url.pathname === '/api/v1/submissions/mine' ||
         url.pathname === '/api/v1/admin/resources' ||
+        url.pathname === '/api/v1/admin/resources/import' ||
         url.pathname === '/api/v1/resources' ||
         /^\/api\/v1\/resources\/[^/]+\/(preview|download)$/.test(url.pathname);
       return knownPath
@@ -567,13 +585,14 @@ export function createWorker(
     if ('response' in authentication) return authentication.response;
 
     try {
-      if (isSubmissionCreateRequest || isSubmissionListRequest || isAdminResourceCreateRequest || isResourceListRequest || isResourceAccessRequest) {
+      if (isSubmissionCreateRequest || isSubmissionListRequest || isAdminResourceCreateRequest ||
+        isAdminResourceImportRequest || isResourceListRequest || isResourceAccessRequest) {
         const profile = await readProfile(env, authentication.claims.sub);
         if (!profile.isActive) {
           return errorResponse('ACCOUNT_INACTIVE', 'This account is not active.', 403, origin, env);
         }
 
-        if (isAdminResourceCreateRequest && profile.role !== 'admin') {
+        if ((isAdminResourceCreateRequest || isAdminResourceImportRequest) && profile.role !== 'admin') {
           return errorResponse('PERMISSION_DENIED', 'Only admins can publish resources.', 403, origin, env);
         }
         if ((isSubmissionCreateRequest || isSubmissionListRequest) && profile.role !== 'admin') {
@@ -584,6 +603,60 @@ export function createWorker(
             origin,
             env,
           );
+        }
+
+        if (isAdminResourceImportRequest) {
+          const body = await request.json().catch(() => null);
+          const input = importAdminResourceSchema.safeParse(body);
+          if (!input.success) {
+            return errorResponse('VALIDATION_ERROR', 'Check the resource metadata and filename.', 422, origin, env);
+          }
+          const normalizedFileName = input.data.fileName.replace(/^\/+/, '').replace(/\\/g, '/');
+          if (!normalizedFileName || normalizedFileName.includes('..') || normalizedFileName.includes('/')) {
+            return errorResponse('VALIDATION_ERROR', 'Use a filename that is directly in the resources bucket root.', 422, origin, env);
+          }
+
+          const existingResources = await listFirestoreDocuments(env, 'resources');
+          if (existingResources.some((resource) =>
+            firestoreString(resource.fields, 'fileName') === normalizedFileName)) {
+            return errorResponse('CONFLICT', 'This PDF is already indexed.', 409, origin, env);
+          }
+
+          const resourceId = crypto.randomUUID();
+          const now = new Date().toISOString();
+          const fields = {
+            title: firestoreValue(input.data.title),
+            description: firestoreValue(input.data.description),
+            departmentId: firestoreValue('geology'),
+            courseId: firestoreValue(input.data.courseId),
+            level: firestoreValue(input.data.level),
+            semester: firestoreValue(input.data.semester),
+            academicSessionId: firestoreValue(input.data.academicSessionId),
+            resourceType: firestoreValue(input.data.resourceType),
+            fileName: firestoreValue(normalizedFileName),
+            storageKey: firestoreValue(normalizedFileName),
+            fileType: firestoreValue('application/pdf'),
+            fileSize: firestoreValue(0),
+            uploadedBy: firestoreValue(authentication.claims.sub),
+            approvalStatus: firestoreValue('approved'),
+            approvedBy: firestoreValue(authentication.claims.sub),
+            approvedAt: { timestampValue: now },
+            downloadCount: firestoreValue(0),
+            createdAt: { timestampValue: now },
+            updatedAt: { timestampValue: now },
+          };
+          const createResult = await firestoreRequest(
+            env,
+            `resources?documentId=${encodeURIComponent(resourceId)}`,
+            { method: 'POST', body: JSON.stringify({ fields }) },
+          );
+          if (!createResult.ok) {
+            throw new ProfileStoreError('The existing PDF could not be indexed.', 503, 'FIRESTORE_UNAVAILABLE');
+          }
+          return response({
+            success: true,
+            data: { id: resourceId, title: input.data.title, fileName: normalizedFileName, approvalStatus: 'approved' },
+          }, 201, origin, env);
         }
 
         if (isAdminResourceCreateRequest) {
