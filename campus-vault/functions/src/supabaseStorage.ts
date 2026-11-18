@@ -130,3 +130,50 @@ export async function removePrivateObject(env: SupabaseStorageEnv, path: string)
     throw new SupabaseStorageError('The stored file could not be removed.', 503, 'STORAGE_DELETE_FAILED');
   }
 }
+
+export interface PrivateStorageObject {
+  name: string;
+  size: number;
+  createdAt: string | null;
+}
+
+export async function listPrivateObjects(
+  env: SupabaseStorageEnv,
+  limit = 100,
+): Promise<PrivateStorageObject[]> {
+    const config = storageConfig(env);
+    const result = await storageRequest(
+      env,
+      `/object/list/${encodeURIComponent(config.bucket)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit, offset: 0, sortBy: { column: 'name', order: 'asc' } }),
+      },
+    );
+    if (!result.ok) {
+      console.error('Supabase object listing failed.', result.status);
+      throw new SupabaseStorageError('The uploaded files could not be listed.', 503, 'STORAGE_LIST_FAILED');
+    }
+    const payload = await result.json();
+    if (!Array.isArray(payload)) {
+      throw new SupabaseStorageError('Supabase returned an invalid file listing.', 503, 'STORAGE_LIST_FAILED');
+    }
+    return payload
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .map((item) => {
+        const metadata = typeof item.metadata === 'object' && item.metadata !== null
+          ? item.metadata as Record<string, unknown>
+          : {};
+        return {
+          name: typeof item.name === 'string' ? item.name : '',
+          size: typeof metadata.size === 'number'
+            ? metadata.size
+            : typeof metadata.size === 'string'
+              ? Number(metadata.size) || 0
+              : 0,
+          createdAt: typeof item.created_at === 'string' ? item.created_at : null,
+        };
+      })
+      .filter((item) => item.name && item.name.toLowerCase().endsWith('.pdf'));
+}

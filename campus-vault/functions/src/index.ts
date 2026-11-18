@@ -2,7 +2,7 @@ import { createRemoteJWKSet, errors as joseErrors, importPKCS8, jwtVerify, SignJ
 import { z } from 'zod';
 import { provisionalGeologyCourses, provisionalGeologyPastQuestionReferences } from './catalog.ts';
 import type { SupabaseStorageEnv } from './supabaseStorage.ts';
-import { createPrivateSignedUrl, removePrivateObject, uploadPrivateObject, SupabaseStorageError } from './supabaseStorage.ts';
+import { createPrivateSignedUrl, listPrivateObjects, removePrivateObject, uploadPrivateObject, SupabaseStorageError } from './supabaseStorage.ts';
 
 interface Env extends SupabaseStorageEnv {
   APP_ORIGIN?: string;
@@ -728,31 +728,35 @@ export function createWorker(
         }
 
         if (isResourceListRequest) {
-          const documents = await listFirestoreDocuments(env, 'resources');
-          const items = documents
-            .filter((document) => firestoreString(document.fields, 'approvalStatus') === 'approved')
-            .map((document) => ({
-              id: document.id,
-              title: firestoreString(document.fields, 'title') ?? '',
-              description: firestoreString(document.fields, 'description') ?? '',
-              departmentId: firestoreString(document.fields, 'departmentId') ?? 'geology',
-              courseId: firestoreString(document.fields, 'courseId') ?? '',
-              level: firestoreNumber(document.fields, 'level', 100),
-              semester: firestoreString(document.fields, 'semester') ?? 'first',
-              academicSessionId: firestoreString(document.fields, 'academicSessionId') ?? '',
-              resourceType: firestoreString(document.fields, 'resourceType') ?? 'other',
-              fileName: firestoreString(document.fields, 'fileName') ?? '',
-              storageKey: firestoreString(document.fields, 'storageKey') ?? '',
-              fileType: firestoreString(document.fields, 'fileType') ?? 'application/pdf',
-              fileSize: firestoreNumber(document.fields, 'fileSize'),
-              uploadedBy: firestoreString(document.fields, 'uploadedBy') ?? '',
+          const objects = await listPrivateObjects(env);
+          const items = objects.map((object) => {
+            const name = object.name;
+            const courseMatch = name.match(/(?:GLY\s*|gly[- ]*)(304|305|306|308|310|311|314|316)/i);
+            const courseCode = courseMatch ? `GLY ${courseMatch[1]}` : '';
+            const title = name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
+            return {
+              id: encodeURIComponent(name),
+              title: title || name,
+              description: courseCode ? `Approved Geology resource for ${courseCode}.` : 'Approved Geology resource.',
+              departmentId: 'geology',
+              courseId: courseCode || 'geology-300',
+              level: 300,
+              semester: 'first',
+              academicSessionId: '2025/2026',
+              resourceType: /PQ|past|question/i.test(name) ? 'past-question' : 'study-material',
+              fileName: name,
+              storageKey: name,
+              fileType: 'application/pdf',
+              fileSize: object.size,
+              uploadedBy: '',
               approvalStatus: 'approved',
-              approvedBy: firestoreString(document.fields, 'approvedBy'),
-              approvedAt: firestoreString(document.fields, 'approvedAt'),
-              downloadCount: firestoreNumber(document.fields, 'downloadCount'),
-              createdAt: firestoreString(document.fields, 'createdAt') ?? new Date().toISOString(),
-              updatedAt: firestoreString(document.fields, 'updatedAt') ?? new Date().toISOString(),
-            }));
+              approvedBy: authentication.claims.sub,
+              approvedAt: object.createdAt,
+              downloadCount: 0,
+              createdAt: object.createdAt ?? new Date().toISOString(),
+              updatedAt: object.createdAt ?? new Date().toISOString(),
+            };
+          });
           return response({ success: true, data: { items, nextCursor: null } }, 200, origin, env);
         }
 
@@ -784,15 +788,15 @@ export function createWorker(
         if (isResourceAccessRequest && accessMatch) {
           const resourceId = accessMatch[1];
           const kind = accessMatch[2] as 'preview' | 'download';
-          const documents = await listFirestoreDocuments(env, 'resources');
-          const resource = documents.find((document) =>
-            document.id === resourceId && firestoreString(document.fields, 'approvalStatus') === 'approved');
-          if (!resource) {
+          let storageKey: string;
+          try {
+            storageKey = decodeURIComponent(resourceId);
+          } catch {
             return errorResponse('RESOURCE_NOT_FOUND', 'This resource is unavailable.', 404, origin, env);
           }
-          const storageKey = firestoreString(resource.fields, 'storageKey');
-          if (!storageKey) {
-            return errorResponse('RESOURCE_INVALID', 'This resource does not have a valid file reference.', 500, origin, env);
+          const objects = await listPrivateObjects(env);
+          if (!objects.some((object) => object.name === storageKey)) {
+            return errorResponse('RESOURCE_NOT_FOUND', 'This resource is unavailable.', 404, origin, env);
           }
           const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
           const url = await createPrivateSignedUrl(env, storageKey, 300);
