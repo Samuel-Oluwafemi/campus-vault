@@ -540,6 +540,15 @@ export function createWorker(
         if (!profile.isActive) {
           return errorResponse('ACCOUNT_INACTIVE', 'This account is not active.', 403, origin, env);
         }
+        if ((isSubmissionCreateRequest || isSubmissionListRequest) && profile.role !== 'admin') {
+          return errorResponse(
+            'PERMISSION_DENIED',
+            'Only an admin can use the resource submission workflow.',
+            403,
+            origin,
+            env,
+          );
+        }
 
         if (isResourceListRequest) {
           const documents = await listFirestoreDocuments(env, 'resources');

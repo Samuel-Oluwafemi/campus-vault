@@ -8,8 +8,7 @@ const AuthPage = lazy(() => import('@/pages/AuthPage'));
 const CompleteProfilePage = lazy(() => import('@/pages/CompleteProfilePage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const LibraryPage = lazy(() => import('@/pages/LibraryPage'));
-const ContributePage = lazy(() => import('@/pages/ContributePage'));
-const MySubmissionsPage = lazy(() => import('@/pages/MySubmissionsPage'));
+const FeatureStatusPage = lazy(() => import('@/pages/FeatureStatusPage'));
 
 function studentPage(element: ReactElement) {
   return <Suspense fallback={<p className="auth-loading">Loading your student space…</p>}>{element}</Suspense>;
@@ -28,8 +27,8 @@ export default function App() {
         <Route element={<StudentLayout />}>
           <Route path="/dashboard" element={studentPage(<DashboardPage />)} />
           <Route path="/library" element={studentPage(<LibraryPage />)} />
-          <Route path="/contribute" element={studentPage(<ContributePage />)} />
-          <Route path="/my-submissions" element={studentPage(<MySubmissionsPage />)} />
+          <Route path="/contribute" element={studentPage(<FeatureStatusPage />)} />
+          <Route path="/my-submissions" element={studentPage(<FeatureStatusPage />)} />
         </Route>
         <Route path="*" element={<LandingPage />} />
       </Routes>
