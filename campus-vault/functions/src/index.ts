@@ -735,7 +735,7 @@ export function createWorker(
             const courseCode = courseMatch ? `GLY ${courseMatch[1]}` : '';
             const title = name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
             return {
-              id: encodeURIComponent(name),
+              id: name,
               title: title || name,
               description: courseCode ? `Approved Geology resource for ${courseCode}.` : 'Approved Geology resource.',
               departmentId: 'geology',
