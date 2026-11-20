@@ -1,5 +1,5 @@
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,12 +9,12 @@ const config = {
 };
 
 const configured = Object.values(config).every(
-  (value) => Boolean(value) && !value.startsWith('your-'),
+  (value) => Boolean(value) && !value.startsWith("your-"),
 );
 
 if (!configured) {
   console.error(
-    '[Campus Vault] Firebase Authentication is not configured. Set the required VITE_FIREBASE_* build environment variables.',
+    "[Campus Vault] Firebase Authentication is not configured. Set the required VITE_FIREBASE_* build environment variables.",
   );
 }
 
@@ -26,8 +26,10 @@ const app = configured
 
 export class FirebaseConfigurationError extends Error {
   constructor() {
-    super('Firebase Authentication is not configured. Add your Firebase web app values to .env and restart the dev server.');
-    this.name = 'FirebaseConfigurationError';
+    super(
+      "Firebase Authentication is not configured. Add your Firebase web app values to .env and restart the dev server.",
+    );
+    this.name = "FirebaseConfigurationError";
   }
 }
 

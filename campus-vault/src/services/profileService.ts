@@ -1,16 +1,20 @@
-import { apiRequest, ApiRequestError } from '@/services/apiClient';
-import { userSessionSchema, type AcademicLevel, type UserProfile } from '@/types/profile';
-import type { User } from 'firebase/auth';
+import { apiRequest, ApiRequestError } from "@/services/apiClient";
+import {
+  userSessionSchema,
+  type AcademicLevel,
+  type UserProfile,
+} from "@/types/profile";
+import type { User } from "firebase/auth";
 
 export const profileService = {
   async getCurrentProfile(user: User): Promise<UserProfile> {
-    const session = await apiRequest('/auth/session', userSessionSchema);
+    const session = await apiRequest("/auth/session", userSessionSchema);
     return session.profile;
   },
 
   async createProfile(user: User, fullName: string): Promise<UserProfile> {
-    const session = await apiRequest('/auth/profile', userSessionSchema, {
-      method: 'POST',
+    const session = await apiRequest("/auth/profile", userSessionSchema, {
+      method: "POST",
       body: { fullName },
     });
     return session.profile;
@@ -20,7 +24,10 @@ export const profileService = {
     try {
       return await this.getCurrentProfile(user);
     } catch (error) {
-      if (!(error instanceof ApiRequestError) || error.code !== 'PROFILE_NOT_FOUND') {
+      if (
+        !(error instanceof ApiRequestError) ||
+        error.code !== "PROFILE_NOT_FOUND"
+      ) {
         throw error;
       }
 
@@ -32,14 +39,16 @@ export const profileService = {
 
   async updateAcademicProfile(
     user: User,
-    input: { departmentId: 'geology' | null; level: AcademicLevel },
+    input: { departmentId: "geology" | null; level: AcademicLevel },
   ): Promise<UserProfile> {
     if (!user.emailVerified) {
-      throw new Error('Verify your email before updating your Campus Vault profile.');
+      throw new Error(
+        "Verify your email before updating your Campus Vault profile.",
+      );
     }
 
-    const session = await apiRequest('/auth/profile', userSessionSchema, {
-      method: 'PATCH',
+    const session = await apiRequest("/auth/profile", userSessionSchema, {
+      method: "PATCH",
       body: input,
     });
     return session.profile;

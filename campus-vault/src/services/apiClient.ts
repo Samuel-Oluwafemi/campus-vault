@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { getFirebaseAuth } from '@/firebase/client';
+import { z } from "zod";
+import { getFirebaseAuth } from "@/firebase/client";
 
 const successEnvelopeSchema = z.object({
   success: z.literal(true),
@@ -18,7 +18,7 @@ const errorEnvelopeSchema = z.object({
 });
 
 interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown | FormData;
   signal?: AbortSignal;
 }
@@ -31,7 +31,7 @@ export class ApiRequestError extends Error {
     readonly details?: unknown,
   ) {
     super(message);
-    this.name = 'ApiRequestError';
+    this.name = "ApiRequestError";
   }
 }
 
@@ -39,42 +39,58 @@ function getApiUrl(path: string): URL {
   const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
   if (!configuredBase) {
     throw new ApiRequestError(
-      'The backend API is not configured. Set VITE_API_BASE_URL and restart the app.',
-      'API_NOT_CONFIGURED',
+      "The backend API is not configured. Set VITE_API_BASE_URL and restart the app.",
+      "API_NOT_CONFIGURED",
       503,
     );
   }
 
-  if (!path || path.startsWith('//') || /^[a-z][a-z\d+.-]*:/i.test(path)) {
-    throw new ApiRequestError('API paths must be relative to the configured API base URL.', 'INVALID_API_PATH', 400);
+  if (!path || path.startsWith("//") || /^[a-z][a-z\d+.-]*:/i.test(path)) {
+    throw new ApiRequestError(
+      "API paths must be relative to the configured API base URL.",
+      "INVALID_API_PATH",
+      400,
+    );
   }
 
   let base: URL;
   try {
     base = new URL(configuredBase);
   } catch {
-    throw new ApiRequestError('VITE_API_BASE_URL must be a valid absolute URL.', 'INVALID_API_CONFIGURATION', 500);
+    throw new ApiRequestError(
+      "VITE_API_BASE_URL must be a valid absolute URL.",
+      "INVALID_API_CONFIGURATION",
+      500,
+    );
   }
 
-  const isLoopback = base.hostname === 'localhost' || base.hostname === '127.0.0.1';
+  const isLoopback =
+    base.hostname === "localhost" || base.hostname === "127.0.0.1";
   if (
-    (base.protocol !== 'https:' && !(isLoopback && base.protocol === 'http:')) ||
+    (base.protocol !== "https:" &&
+      !(isLoopback && base.protocol === "http:")) ||
     base.username ||
     base.password ||
     base.search ||
     base.hash
   ) {
     throw new ApiRequestError(
-      'The API base URL must use HTTPS and cannot include credentials, a query, or a fragment.',
-      'INVALID_API_CONFIGURATION',
+      "The API base URL must use HTTPS and cannot include credentials, a query, or a fragment.",
+      "INVALID_API_CONFIGURATION",
       500,
     );
   }
 
-  const basePath = base.pathname.endsWith('/') ? base.pathname : `${base.pathname}/`;
-  const url = new URL(path.replace(/^\/+/, ''), `${base.origin}${basePath}`);
+  const basePath = base.pathname.endsWith("/")
+    ? base.pathname
+    : `${base.pathname}/`;
+  const url = new URL(path.replace(/^\/+/, ""), `${base.origin}${basePath}`);
   if (url.origin !== base.origin || !url.pathname.startsWith(basePath)) {
-    throw new ApiRequestError('The API path is outside the configured API base URL.', 'INVALID_API_PATH', 400);
+    throw new ApiRequestError(
+      "The API path is outside the configured API base URL.",
+      "INVALID_API_PATH",
+      400,
+    );
   }
   return url;
 }
@@ -84,8 +100,8 @@ async function readJson(response: Response): Promise<unknown> {
     return await response.json();
   } catch {
     throw new ApiRequestError(
-      'The backend returned an invalid response.',
-      'INVALID_API_RESPONSE',
+      "The backend returned an invalid response.",
+      "INVALID_API_RESPONSE",
       response.status,
     );
   }
@@ -101,36 +117,44 @@ async function requestApi<T>(
   const user = requiresAuth ? getFirebaseAuth().currentUser : null;
 
   if (requiresAuth && !user) {
-    throw new ApiRequestError('Sign in to continue.', 'AUTH_REQUIRED', 401);
+    throw new ApiRequestError("Sign in to continue.", "AUTH_REQUIRED", 401);
   }
   if (user && !user.emailVerified) {
-    throw new ApiRequestError('Verify your email before using protected student features.', 'EMAIL_NOT_VERIFIED', 403);
+    throw new ApiRequestError(
+      "Verify your email before using protected student features.",
+      "EMAIL_NOT_VERIFIED",
+      403,
+    );
   }
 
-  const token = user ? await user.getIdToken() : '';
-  const headers = new Headers({ Accept: 'application/json', Authorization: `Bearer ${token}` });
-  if (!token) headers.delete('Authorization');
+  const token = user ? await user.getIdToken() : "";
+  const headers = new Headers({
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+  if (!token) headers.delete("Authorization");
   if (options.body !== undefined && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
+    headers.set("Content-Type", "application/json");
   }
 
   let response: Response;
   try {
     response = await fetch(url, {
-      method: options.method ?? 'GET',
+      method: options.method ?? "GET",
       headers,
-      body: options.body === undefined
-        ? undefined
-        : options.body instanceof FormData
-          ? options.body
-          : JSON.stringify(options.body),
+      body:
+        options.body === undefined
+          ? undefined
+          : options.body instanceof FormData
+            ? options.body
+            : JSON.stringify(options.body),
       signal: options.signal,
     });
   } catch (error) {
     if (error instanceof TypeError) {
       throw new ApiRequestError(
-        'The backend could not be reached. Check your connection and API configuration.',
-        'NETWORK_ERROR',
+        "The backend could not be reached. Check your connection and API configuration.",
+        "NETWORK_ERROR",
         0,
       );
     }
@@ -149,7 +173,7 @@ async function requestApi<T>(
       );
     }
     throw new ApiRequestError(
-      'The backend request failed.',
+      "The backend request failed.",
       `HTTP_${response.status}`,
       response.status,
     );
@@ -158,8 +182,8 @@ async function requestApi<T>(
   const envelope = successEnvelopeSchema.safeParse(payload);
   if (!envelope.success) {
     throw new ApiRequestError(
-      'The backend returned an unexpected response.',
-      'INVALID_API_RESPONSE',
+      "The backend returned an unexpected response.",
+      "INVALID_API_RESPONSE",
       response.status,
     );
   }
@@ -168,8 +192,8 @@ async function requestApi<T>(
   const data = responseSchema.safeParse(payloadData.data);
   if (!data.success) {
     throw new ApiRequestError(
-      'The backend response did not match the expected data format.',
-      'INVALID_API_DATA',
+      "The backend response did not match the expected data format.",
+      "INVALID_API_DATA",
       response.status,
     );
   }
@@ -187,38 +211,49 @@ export async function apiRequest<T>(
 export async function publicApiRequest<T>(
   path: string,
   responseSchema: z.ZodType<T>,
-  options: Pick<ApiRequestOptions, 'signal'> = {},
+  options: Pick<ApiRequestOptions, "signal"> = {},
 ): Promise<T> {
   return requestApi(path, responseSchema, options, false);
 }
 
-export async function downloadApiFile(path: string, fallbackName: string): Promise<void> {
+export async function downloadApiFile(
+  path: string,
+  fallbackName: string,
+): Promise<void> {
   const url = getApiUrl(path);
   const user = getFirebaseAuth().currentUser;
   if (!user) {
-    throw new ApiRequestError('Sign in to continue.', 'AUTH_REQUIRED', 401);
+    throw new ApiRequestError("Sign in to continue.", "AUTH_REQUIRED", 401);
   }
   if (!user.emailVerified) {
-    throw new ApiRequestError('Verify your email before downloading resources.', 'EMAIL_NOT_VERIFIED', 403);
+    throw new ApiRequestError(
+      "Verify your email before downloading resources.",
+      "EMAIL_NOT_VERIFIED",
+      403,
+    );
   }
   const token = await user.getIdToken();
   const response = await fetch(url, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' },
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/pdf" },
   });
   if (!response.ok) {
     await readJson(response).catch(() => null);
-    throw new ApiRequestError('The file could not be downloaded.', `HTTP_${response.status}`, response.status);
+    throw new ApiRequestError(
+      "The file could not be downloaded.",
+      `HTTP_${response.status}`,
+      response.status,
+    );
   }
   const blob = await response.blob();
-  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const disposition = response.headers.get("Content-Disposition") ?? "";
   const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
   const filename = filenameMatch?.[1] ?? fallbackName;
   const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
+  const anchor = document.createElement("a");
   anchor.href = objectUrl;
   anchor.download = filename;
-  anchor.style.display = 'none';
+  anchor.style.display = "none";
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

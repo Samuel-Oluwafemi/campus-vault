@@ -1,16 +1,24 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const uploadStatusSchema = z.enum([
-  'intent',
-  'uploading',
-  'verifying',
-  'complete',
-  'failed',
-  'expired',
+  "intent",
+  "uploading",
+  "verifying",
+  "complete",
+  "failed",
+  "expired",
 ]);
 
-export const moderationStatusSchema = z.enum(['pending', 'approved', 'rejected']);
-export const publicationStatusSchema = z.enum(['unpublished', 'published', 'archived']);
+export const moderationStatusSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+]);
+export const publicationStatusSchema = z.enum([
+  "unpublished",
+  "published",
+  "archived",
+]);
 
 export const submissionLifecycleSchema = z.object({
   uploadStatus: uploadStatusSchema,
@@ -24,24 +32,30 @@ export type PublicationStatus = z.infer<typeof publicationStatusSchema>;
 export type SubmissionLifecycle = z.infer<typeof submissionLifecycleSchema>;
 
 const uploadTransitions: Record<UploadStatus, readonly UploadStatus[]> = {
-  intent: ['uploading', 'expired', 'failed'],
-  uploading: ['verifying', 'expired', 'failed'],
-  verifying: ['complete', 'failed', 'expired'],
+  intent: ["uploading", "expired", "failed"],
+  uploading: ["verifying", "expired", "failed"],
+  verifying: ["complete", "failed", "expired"],
   complete: [],
   failed: [],
   expired: [],
 };
 
-const moderationTransitions: Record<ModerationStatus, readonly ModerationStatus[]> = {
-  pending: ['approved', 'rejected'],
+const moderationTransitions: Record<
+  ModerationStatus,
+  readonly ModerationStatus[]
+> = {
+  pending: ["approved", "rejected"],
   approved: [],
   rejected: [],
 };
 
-const publicationTransitions: Record<PublicationStatus, readonly PublicationStatus[]> = {
-  unpublished: ['published'],
-  published: ['archived'],
-  archived: ['published'],
+const publicationTransitions: Record<
+  PublicationStatus,
+  readonly PublicationStatus[]
+> = {
+  unpublished: ["published"],
+  published: ["archived"],
+  archived: ["published"],
 };
 
 export function canTransitionUpload(
@@ -69,8 +83,8 @@ export function isStudentLibraryAccessible(
   lifecycle: SubmissionLifecycle,
 ): boolean {
   return (
-    lifecycle.uploadStatus === 'complete' &&
-    lifecycle.moderationStatus === 'approved' &&
-    lifecycle.publicationStatus === 'published'
+    lifecycle.uploadStatus === "complete" &&
+    lifecycle.moderationStatus === "approved" &&
+    lifecycle.publicationStatus === "published"
   );
 }

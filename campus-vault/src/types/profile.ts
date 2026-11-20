@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const userProfileSchema = z.object({
   uid: z.string().min(1),
@@ -6,7 +6,7 @@ export const userProfileSchema = z.object({
   email: z.string().email(),
   departmentId: z.string().nullable(),
   level: z.number().int().min(100).max(600).nullable(),
-  role: z.enum(['student', 'contributor', 'admin']),
+  role: z.enum(["student", "contributor", "admin"]),
   isActive: z.boolean(),
   emailVerified: z.boolean(),
   createdAt: z.string().datetime(),

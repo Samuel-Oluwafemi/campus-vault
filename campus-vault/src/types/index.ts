@@ -1,22 +1,26 @@
-export const ROLES = ['student', 'contributor', 'admin'] as const;
+export const ROLES = ["student", "contributor", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const SEMESTERS = ['first', 'second'] as const;
+export const SEMESTERS = ["first", "second"] as const;
 export type Semester = (typeof SEMESTERS)[number];
 
 export const RESOURCE_TYPES = [
-  'lecture-note',
-  'past-question',
-  'test-question',
-  'handout',
-  'study-material',
-  'other',
+  "lecture-note",
+  "past-question",
+  "test-question",
+  "handout",
+  "study-material",
+  "other",
 ] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
-export type { ModerationStatus, PublicationStatus, UploadStatus } from '@/domain/resourceLifecycle';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'archived';
-export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type {
+  ModerationStatus,
+  PublicationStatus,
+  UploadStatus,
+} from "@/domain/resourceLifecycle";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "archived";
+export type SubmissionStatus = "pending" | "approved" | "rejected";
 
 /** ISO 8601 string. Firestore Timestamps get converted at the service boundary later. */
 export type ISODate = string;
@@ -119,10 +123,10 @@ export interface Page<T> {
 
 /** Mirrors the error codes in the spec's API section so the swap to a real backend is painless. */
 export type ApiErrorCode =
-  | 'UNAUTHENTICATED'
-  | 'PERMISSION_DENIED'
-  | 'RESOURCE_NOT_FOUND'
-  | 'CONFLICT'
-  | 'FILE_TOO_LARGE'
-  | 'VALIDATION_FAILED'
-  | 'INTERNAL_ERROR';
+  | "UNAUTHENTICATED"
+  | "PERMISSION_DENIED"
+  | "RESOURCE_NOT_FOUND"
+  | "CONFLICT"
+  | "FILE_TOO_LARGE"
+  | "VALIDATION_FAILED"
+  | "INTERNAL_ERROR";

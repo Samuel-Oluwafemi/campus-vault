@@ -1,7 +1,7 @@
-import { seed, type Db } from '@/data/seed';
-import type { ApiErrorCode } from '@/types';
+import { seed, type Db } from "@/data/seed";
+import type { ApiErrorCode } from "@/types";
 
-const KEY = 'campus-vault:db:v1';
+const KEY = "campus-vault:db:v1";
 let cache: Db | null = null;
 
 function persist() {
@@ -38,9 +38,12 @@ export function resetDb() {
 
 /** Simulates network latency so loading states get built for real. */
 export const wait = (min = 200, max = 500) =>
-  new Promise<void>((resolve) => setTimeout(resolve, min + Math.random() * (max - min)));
+  new Promise<void>((resolve) =>
+    setTimeout(resolve, min + Math.random() * (max - min)),
+  );
 
-export const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+export const newId = (prefix: string) =>
+  `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 export const nowIso = () => new Date().toISOString();
 
 /** Same shape as the spec's error response: { code, message } plus an HTTP-style status. */
@@ -54,6 +57,19 @@ export class ApiError extends Error {
   }
 }
 
-export function logActivity(db: Db, actorId: string, action: string, targetId: string, targetType: string) {
-  db.activityLogs.unshift({ id: newId('log'), actorId, action, targetId, targetType, createdAt: nowIso() });
+export function logActivity(
+  db: Db,
+  actorId: string,
+  action: string,
+  targetId: string,
+  targetType: string,
+) {
+  db.activityLogs.unshift({
+    id: newId("log"),
+    actorId,
+    action,
+    targetId,
+    targetType,
+    createdAt: nowIso(),
+  });
 }
