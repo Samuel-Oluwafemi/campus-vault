@@ -13,6 +13,12 @@ import { getFirebaseAuth } from '@/firebase/client';
 import { profileService } from '@/services/profileService';
 import { ApiRequestError } from '@/services/apiClient';
 
+function getErrorCode(error: unknown): string {
+  return error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : '';
+}
+
 export const firebaseAuthService = {
   observe(callback: (user: User | null) => void, onError: (error: Error) => void) {
     try {
@@ -27,9 +33,11 @@ export const firebaseAuthService = {
     const auth = getFirebaseAuth();
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(credential.user, { displayName: fullName });
-    await sendEmailVerification(credential.user, {
-      url: `${window.location.origin}/verify-email`,
-    });
+    try {
+      await sendEmailVerification(credential.user);
+    } catch (error) {
+      console.error('[Campus Vault] Verification email could not be sent.', getErrorCode(error));
+    }
     return credential.user;
   },
 
@@ -40,9 +48,7 @@ export const firebaseAuthService = {
 
   async resendVerification(user: User) {
     if (user.emailVerified) return;
-    await sendEmailVerification(user, {
-      url: `${window.location.origin}/verify-email`,
-    });
+    await sendEmailVerification(user);
   },
 
   async refreshVerification(user: User) {
@@ -98,6 +104,7 @@ export function getAuthErrorMessage(error: unknown): string {
     case 'auth/operation-not-allowed':
       return 'Email and password sign-in is not enabled for this Firebase project.';
     case 'auth/unauthorized-domain':
+    case 'auth/unauthorized-continue-uri':
       return 'This address is not authorized in Firebase. Add the current host to Firebase Authentication authorized domains.';
     case 'auth/user-disabled':
       return 'This account has been disabled. Contact the Campus Vault administrator.';

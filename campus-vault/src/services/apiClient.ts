@@ -191,3 +191,36 @@ export async function publicApiRequest<T>(
 ): Promise<T> {
   return requestApi(path, responseSchema, options, false);
 }
+
+export async function downloadApiFile(path: string, fallbackName: string): Promise<void> {
+  const url = getApiUrl(path);
+  const user = getFirebaseAuth().currentUser;
+  if (!user) {
+    throw new ApiRequestError('Sign in to continue.', 'AUTH_REQUIRED', 401);
+  }
+  if (!user.emailVerified) {
+    throw new ApiRequestError('Verify your email before downloading resources.', 'EMAIL_NOT_VERIFIED', 403);
+  }
+  const token = await user.getIdToken();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' },
+  });
+  if (!response.ok) {
+    await readJson(response).catch(() => null);
+    throw new ApiRequestError('The file could not be downloaded.', `HTTP_${response.status}`, response.status);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = filenameMatch?.[1] ?? fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}

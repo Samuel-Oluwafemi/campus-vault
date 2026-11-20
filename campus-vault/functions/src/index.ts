@@ -561,7 +561,9 @@ export function createWorker(
     const isAdminResourceImportRequest = url.pathname === '/api/v1/admin/resources/import' && request.method === 'POST';
     const isResourceListRequest = url.pathname === '/api/v1/resources' && request.method === 'GET';
     const accessMatch = url.pathname.match(/^\/api\/v1\/resources\/([^/]+)\/(preview|download)$/);
-    const isResourceAccessRequest = Boolean(accessMatch && request.method === 'POST');
+    const isResourceAccessRequest = Boolean(accessMatch &&
+      ((accessMatch[2] === 'preview' && request.method === 'POST') ||
+        (accessMatch[2] === 'download' && request.method === 'GET')));
     if (!isSessionRequest && !isProfileCreateRequest && !isProfileUpdateRequest &&
       !isSubmissionCreateRequest && !isSubmissionListRequest && !isAdminResourceCreateRequest &&
       !isAdminResourceImportRequest &&
@@ -799,7 +801,28 @@ export function createWorker(
             return errorResponse('RESOURCE_NOT_FOUND', 'This resource is unavailable.', 404, origin, env);
           }
           const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
-          const url = await createPrivateSignedUrl(env, storageKey, 300);
+          const downloadName = kind === 'download'
+            ? storageKey.split('/').pop() ?? 'campus-vault-resource.pdf'
+            : undefined;
+          const url = await createPrivateSignedUrl(env, storageKey, 300, downloadName);
+          if (kind === 'download') {
+            const fileResponse = await fetch(url);
+            if (!fileResponse.ok) {
+              console.error('Signed PDF download fetch failed.', fileResponse.status);
+              return errorResponse('STORAGE_DOWNLOAD_FAILED', 'The PDF could not be downloaded.', 503, origin, env);
+            }
+            const headers = new Headers({
+              'Content-Type': fileResponse.headers.get('Content-Type') ?? 'application/pdf',
+              'Content-Disposition': `attachment; filename="${downloadName ?? 'campus-vault-resource.pdf'}"`,
+              'Cache-Control': 'no-store',
+              'X-Content-Type-Options': 'nosniff',
+            });
+            if (origin && allowedOrigin(origin, env)) {
+              headers.set('Access-Control-Allow-Origin', origin);
+              headers.set('Vary', 'Origin');
+            }
+            return new Response(fileResponse.body, { status: 200, headers });
+          }
           return response({ success: true, data: { url, expiresAt, kind } }, 200, origin, env);
         }
 

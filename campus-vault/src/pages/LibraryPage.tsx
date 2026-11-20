@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { getGeologyCourseCatalog, type CatalogCourse } from '@/services/catalogService';
-import { apiRequest, ApiRequestError } from '@/services/apiClient';
+import { apiRequest, ApiRequestError, downloadApiFile } from '@/services/apiClient';
 
 const resourceSchema = z.object({
   id: z.string(),
@@ -39,7 +39,6 @@ export default function LibraryPage() {
   const [resources, setResources] = useState<z.infer<typeof resourceSchema>[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceError, setResourceError] = useState('');
-  const [unassignedPastQuestionReferences, setUnassignedPastQuestionReferences] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -56,7 +55,6 @@ export default function LibraryPage() {
     try {
       const catalog = await getGeologyCourseCatalog(signal);
       setCourses(catalog.courses);
-      setUnassignedPastQuestionReferences(catalog.unassignedPastQuestionReferences);
     } catch (loadError) {
       if (signal?.aborted) return;
       setError(loadError instanceof Error ? loadError.message : 'The course index could not be loaded.');
@@ -81,19 +79,6 @@ export default function LibraryPage() {
     return () => controller.abort();
   }, []);
 
-  const visibleCourses = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return courses.filter((course) => {
-      const matchesSearch = !term || [course.code, ...course.sourceFiles]
-        .some((value) => value.toLowerCase().includes(term));
-      const matchesDepartment = !department || department === course.departmentId;
-      const matchesLevel = !level || Number(level) === course.level;
-      const matchesSemester = !semester || course.semester === semester;
-      const matchesCourse = !courseId || course.id === courseId;
-      return matchesSearch && matchesDepartment && matchesLevel && matchesSemester && matchesCourse;
-    });
-  }, [courses, department, level, semester, courseId, search]);
-
   const visibleResources = useMemo(() => {
     const term = search.trim().toLowerCase();
     return resources.filter((resource) => {
@@ -110,8 +95,15 @@ export default function LibraryPage() {
 
   async function openResource(resourceId: string, kind: 'preview' | 'download') {
     try {
+      if (kind === 'download') {
+        await downloadApiFile(
+          `/resources/${encodeURIComponent(resourceId)}/download`,
+          decodeURIComponent(resourceId.split('/').pop() ?? 'campus-vault-resource.pdf'),
+        );
+        return;
+      }
       const grant = await apiRequest(
-        `/resources/${encodeURIComponent(resourceId)}/${kind}`,
+        `/resources/${encodeURIComponent(resourceId)}/preview`,
         z.object({ url: z.string().url(), expiresAt: z.string(), kind: z.enum(['preview', 'download']) }),
         { method: 'POST' },
       );
@@ -164,7 +156,7 @@ export default function LibraryPage() {
             Department
             <select value={department} onChange={(event) => setDepartment(event.target.value)}>
               <option value="">All departments</option>
-              <option value="geology">Geology (provisional catalog)</option>
+              <option value="geology">Geology</option>
             </select>
           </label>
           <label>
@@ -187,7 +179,7 @@ export default function LibraryPage() {
             <select value={courseId} onChange={(event) => setCourseId(event.target.value)}>
               <option value="">All courses</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.id}>{course.code} · provisional</option>
+                <option key={course.id} value={course.id}>{course.code}</option>
               ))}
             </select>
           </label>
@@ -254,62 +246,6 @@ export default function LibraryPage() {
         )}
       </section>
 
-      <section className="course-index" aria-labelledby="course-index-heading">
-        <div className="results-heading">
-          <div>
-            <p className="eyebrow">REFERENCE INDEX</p>
-            <h2 id="course-index-heading">Provisional Geology course codes</h2>
-          </div>
-          {!loading && !error && <span className="resource-count">{visibleCourses.length} of {courses.length}</span>}
-        </div>
-        <div className="catalog-warning" role="note">
-          <strong>This is not an official course catalog.</strong>
-          <span>Codes are derived from reference filenames. Titles, semesters, and academic levels are not verified; no materials are attached.</span>
-        </div>
-        {loading ? (
-          <p className="catalog-message" role="status">Loading the provisional course index…</p>
-        ) : error ? (
-          <div className="catalog-error" role="alert">
-            <p>{error}</p>
-            <button type="button" className="button button-secondary" onClick={() => void loadCatalog()}>Try again</button>
-          </div>
-        ) : visibleCourses.length ? (
-          <>
-            <div className="catalog-grid">
-              {visibleCourses.map((course) => (
-                <article className="catalog-course" key={course.id}>
-                  <div className="catalog-course-topline">
-                    <span className="catalog-course-code">{course.code}</span>
-                    <span className="catalog-status">Provisional</span>
-                  </div>
-                  <h3>{course.title ?? 'Official course title not verified'}</h3>
-                  <dl>
-                    <div><dt>Level</dt><dd>{course.level} (inferred)</dd></div>
-                    <div><dt>Semester</dt><dd>{course.semester ?? 'Not verified'}</dd></div>
-                    <div><dt>Published materials</dt><dd>None</dd></div>
-                  </dl>
-                  <details>
-                    <summary>Reference filenames ({course.sourceFiles.length})</summary>
-                    <ul>{course.sourceFiles.map((file) => <li key={file}>{file}</li>)}</ul>
-                    <p>These filenames are references only; the files are not accessible through Campus Vault.</p>
-                  </details>
-                </article>
-              ))}
-            </div>
-            {!search.trim() && unassignedPastQuestionReferences.length > 0 && (
-              <section className="unassigned-references" aria-labelledby="past-question-references">
-                <h3 id="past-question-references">Level-wide past-question references</h3>
-                <p>These filenames do not identify a specific course and are not hosted or available to open.</p>
-                <ul>
-                  {unassignedPastQuestionReferences.map((file) => <li key={file}>{file}</li>)}
-                </ul>
-              </section>
-            )}
-          </>
-        ) : (
-          <p className="catalog-message" role="status">No course codes match the current search and course filters.</p>
-        )}
-      </section>
     </main>
   );
 }

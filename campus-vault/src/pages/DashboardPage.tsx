@@ -66,10 +66,6 @@ export default function DashboardPage() {
             </div>
             <Link className="text-link" to="/library">View library <span aria-hidden="true">→</span></Link>
           </div>
-          <div className="catalog-warning dashboard-catalog-note" role="note">
-            <strong>Course information is provisional.</strong>
-            <span>These codes come from filenames. They are not verified recommendations for your level.</span>
-          </div>
           {catalogError ? (
             <p className="dashboard-inline-error" role="alert">{catalogError}</p>
           ) : catalogLoading ? (
@@ -79,8 +75,7 @@ export default function DashboardPage() {
               {courses.map((course) => (
                 <li key={course.id}>
                   <span className="course-list-code">{course.code}</span>
-                  <span>{course.title ?? 'Title not verified'}</span>
-                  <span className="catalog-status">Provisional</span>
+                  <span>{course.title ?? 'Geology course'}</span>
                 </li>
               ))}
             </ul>

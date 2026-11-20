@@ -92,6 +92,7 @@ export async function createPrivateSignedUrl(
   env: SupabaseStorageEnv,
   path: string,
   expiresInSeconds = 300,
+  downloadName?: string,
 ): Promise<string> {
   const config = storageConfig(env);
   const result = await storageRequest(
@@ -100,7 +101,10 @@ export async function createPrivateSignedUrl(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: expiresInSeconds }),
+      body: JSON.stringify({
+        expiresIn: expiresInSeconds,
+        ...(downloadName ? { download: downloadName } : {}),
+      }),
     },
   );
   if (!result.ok) {
@@ -113,12 +117,16 @@ export async function createPrivateSignedUrl(
     throw new SupabaseStorageError('Supabase returned an invalid file access link.', 503, 'STORAGE_SIGN_FAILED');
   }
   if (/^https?:\/\//i.test(payload.signedURL)) {
-    return new URL(payload.signedURL).toString();
+    const absolute = new URL(payload.signedURL);
+    if (downloadName) absolute.searchParams.set('download', downloadName);
+    return absolute.toString();
   }
   const signedPath = payload.signedURL.startsWith('/storage/v1/')
     ? payload.signedURL
     : `/storage/v1${payload.signedURL.startsWith('/') ? '' : '/'}${payload.signedURL}`;
-  return new URL(signedPath, config.baseUrl).toString();
+  const signed = new URL(signedPath, config.baseUrl);
+  if (downloadName) signed.searchParams.set('download', downloadName);
+  return signed.toString();
 }
 
 export async function removePrivateObject(env: SupabaseStorageEnv, path: string): Promise<void> {
